@@ -9,6 +9,7 @@ import 'home_page.dart';
 import 'admin_page.dart';
 import 'prayer_times_page.dart';
 import 'prayer_detail_page.dart';
+import 'qibla_page.dart';
 
 class JourneysPage extends StatefulWidget {
   const JourneysPage({super.key});
@@ -683,6 +684,7 @@ class _JourneysPageState extends State<JourneysPage> {
           const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Ana Sayfa'),
           const BottomNavigationBarItem(icon: Icon(Icons.route), label: 'Yolculuklarım'),
           const BottomNavigationBarItem(icon: Icon(Icons.schedule), label: 'Namazlarım'),
+          const BottomNavigationBarItem(icon: Icon(Icons.explore), label: 'Kible'),
           BottomNavigationBarItem(icon: _buildMosqueHeartIcon(), label: 'Destekle'),
         ],
         onTap: (index) {
@@ -697,6 +699,11 @@ class _JourneysPageState extends State<JourneysPage> {
               MaterialPageRoute(builder: (context) => const PrayerTimesPage()),
             );
           } else if (index == 3) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const QiblaPage()),
+            );
+          } else if (index == 4) {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const SupportPage()),

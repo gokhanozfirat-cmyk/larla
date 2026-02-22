@@ -5,6 +5,7 @@ import 'package:timezone/data/latest.dart' as tz_data;
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
+  bool _initialized = false;
 
   NotificationService._internal();
 
@@ -21,6 +22,7 @@ class NotificationService {
 
   Future<void> initialize() async {
     try {
+      if (_initialized) return;
       tz_data.initializeTimeZones();
       flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
@@ -41,6 +43,16 @@ class NotificationService {
         onDidReceiveNotificationResponse: onDidReceiveNotificationResponse,
       );
 
+      // Request permissions for Android 13+
+      try {
+        await flutterLocalNotificationsPlugin
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
+            ?.requestNotificationsPermission();
+      } catch (e) {
+        print('Android notification permission request failed: $e');
+      }
+
       // Request permissions for iOS
       await flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
@@ -50,10 +62,16 @@ class NotificationService {
             badge: true,
             sound: true,
           );
+      _initialized = true;
     } catch (e) {
       print('Error initializing notifications: $e');
       rethrow;
     }
+  }
+
+  Future<void> _ensureInitialized() async {
+    if (_initialized) return;
+    await initialize();
   }
 
   static void onDidReceiveNotificationResponse(
@@ -62,6 +80,7 @@ class NotificationService {
   Future<void> scheduleNoonNotification(
       String journeyId, String prayerTitle, int dailyCount) async {
     try {
+      await _ensureInitialized();
       final now = DateTime.now();
       var scheduledDate = DateTime(now.year, now.month, now.day, 12, 0);
 
@@ -99,6 +118,7 @@ class NotificationService {
 
   Future<void> cancelNotification(String journeyId) async {
     try {
+      await _ensureInitialized();
       await flutterLocalNotificationsPlugin.cancel(journeyId.hashCode);
     } catch (e) {
       print('Error canceling notification: $e');
@@ -112,6 +132,7 @@ class NotificationService {
     required String time, // "HH:mm" formatında
   }) async {
     try {
+      await _ensureInitialized();
       final parts = time.split(':');
       if (parts.length != 2) return;
 
@@ -173,6 +194,7 @@ class NotificationService {
     String? ishaTime,
   }) async {
     // Önce tüm ezan bildirimlerini iptal et
+    await _ensureInitialized();
     await cancelAllEzanNotifications();
 
     if (fajrTime != null && fajrTime.isNotEmpty) {
@@ -215,6 +237,7 @@ class NotificationService {
   // Tüm ezan bildirimlerini iptal et
   Future<void> cancelAllEzanNotifications() async {
     try {
+      await _ensureInitialized();
       await flutterLocalNotificationsPlugin.cancel(_fajrNotificationId);
       await flutterLocalNotificationsPlugin.cancel(_dhuhrNotificationId);
       await flutterLocalNotificationsPlugin.cancel(_asrNotificationId);

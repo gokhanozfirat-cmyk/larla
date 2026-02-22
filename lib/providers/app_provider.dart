@@ -7,6 +7,7 @@ import '../models/prayer.dart';
 import '../models/journey.dart';
 import '../models/prayer_times.dart';
 import '../services/supabase_service.dart';
+import '../services/notification_service.dart';
 
 class AppProvider with ChangeNotifier {
   double _fontSize = 18.0;
@@ -178,6 +179,18 @@ class AppProvider with ChangeNotifier {
       } catch (e) {
         print('Error loading prayer times: $e');
       }
+    }
+
+    if (_prayerTimes.ezanNotificationEnabled) {
+      Future(() async {
+        await NotificationService().scheduleAllEzanNotifications(
+          fajrTime: _prayerTimes.fajrTime,
+          dhuhrTime: _prayerTimes.dhuhrTime,
+          asrTime: _prayerTimes.asrTime,
+          maghribTime: _prayerTimes.maghribTime,
+          ishaTime: _prayerTimes.ishaTime,
+        );
+      });
     }
 
     // Yerel veriler boşsa varsayılan duaları yükle

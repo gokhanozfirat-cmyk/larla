@@ -6,6 +6,7 @@ import '../services/prayer_time_api_service.dart';
 import 'home_page.dart';
 import 'journeys_page.dart';
 import 'support_page.dart';
+import 'qibla_page.dart';
 
 class PrayerTimesPage extends StatefulWidget {
   const PrayerTimesPage({super.key});
@@ -293,10 +294,11 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
                           ),
                           value: _ezanNotificationEnabled,
                           activeColor: Colors.green,
-                          onChanged: (value) {
+                          onChanged: _isLoadingPrayerTimes ? null : (value) {
                             setState(() {
                               _ezanNotificationEnabled = value;
                             });
+                            _saveEzanTimes(); // Ayarları anında kaydet ve bildirimleri ayarla
                           },
                         ),
                         const Divider(),
@@ -411,6 +413,8 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
               icon: Icon(Icons.route), label: 'Yolculuklarım'),
           const BottomNavigationBarItem(
               icon: Icon(Icons.schedule), label: 'Namazlarım'),
+          const BottomNavigationBarItem(
+              icon: Icon(Icons.explore), label: 'Kible'),
           BottomNavigationBarItem(
               icon: _buildMosqueHeartIcon(), label: 'Destekle'),
         ],
@@ -426,6 +430,11 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
               MaterialPageRoute(builder: (context) => const JourneysPage()),
             );
           } else if (index == 3) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const QiblaPage()),
+            );
+          } else if (index == 4) {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const SupportPage()),
