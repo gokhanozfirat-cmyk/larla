@@ -8,11 +8,31 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Android 13+ bildirim izni -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Zamanlanmış bildirimlerin reboot sonrası yeniden kurulabilmesi için -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     
     <application
         android:label="dualarla"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-6339367633683720~2625822356" />
+
+        <!-- flutter_local_notifications: schedule receiver'ları -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+            android:exported="false" />
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
         
         <activity
             android:name=".MainActivity"

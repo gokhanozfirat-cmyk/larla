@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'providers/app_provider.dart';
 import 'screens/home_page.dart';
 import 'services/notification_service.dart';
@@ -11,6 +12,7 @@ bool isSupabaseInitialized = false;
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  MobileAds.instance.initialize();
   
   // Uygulamayı HEMEN başlat - Supabase arka planda yüklenecek
   runApp(

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../services/version_service.dart';
@@ -22,6 +24,17 @@ class _HomePageState extends State<HomePage> {
 
   // Altın rengi
   static const Color _goldColor = Color(0xFFD4AF37);
+  static const int _prayersPerAd = 4;
+  static const String _androidReleaseBannerAdUnitId =
+      'ca-app-pub-6339367633683720/7550845979';
+  static const String _iosReleaseBannerAdUnitId = '';
+  static const String _androidTestBannerAdUnitId =
+      'ca-app-pub-3940256099942544/6300978111';
+  static const String _iosTestBannerAdUnitId =
+      'ca-app-pub-3940256099942544/2934735716';
+
+  final Map<int, BannerAd> _bannerAds = {};
+  final Set<int> _loadedBannerSlots = <int>{};
 
   @override
   void initState() {
@@ -34,6 +47,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    for (final ad in _bannerAds.values) {
+      ad.dispose();
+    }
     super.dispose();
   }
 
@@ -96,6 +112,80 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  bool get _adsSupported {
+    return defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+  }
+
+  String get _bannerAdUnitId {
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      if (kReleaseMode && _androidReleaseBannerAdUnitId.isNotEmpty) {
+        return _androidReleaseBannerAdUnitId;
+      }
+      return _androidTestBannerAdUnitId;
+    }
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      if (kReleaseMode && _iosReleaseBannerAdUnitId.isNotEmpty) {
+        return _iosReleaseBannerAdUnitId;
+      }
+      return _iosTestBannerAdUnitId;
+    }
+    return _androidTestBannerAdUnitId;
+  }
+
+  int _adCountForPrayerCount(int prayerCount) {
+    if (!_adsSupported) return 0;
+    return prayerCount ~/ _prayersPerAd;
+  }
+
+  bool _isAdIndex(int listIndex) {
+    return _adsSupported && (listIndex + 1) % (_prayersPerAd + 1) == 0;
+  }
+
+  int _prayerIndexFromListIndex(int listIndex) {
+    return listIndex - (listIndex ~/ (_prayersPerAd + 1));
+  }
+
+  BannerAd _createBannerAd(int slot) {
+    final ad = BannerAd(
+      adUnitId: _bannerAdUnitId,
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          if (!mounted) return;
+          setState(() {
+            _loadedBannerSlots.add(slot);
+          });
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          _bannerAds.remove(slot);
+          _loadedBannerSlots.remove(slot);
+        },
+      ),
+    );
+    ad.load();
+    return ad;
+  }
+
+  Widget _buildBannerTile(int slot) {
+    final ad = _bannerAds.putIfAbsent(slot, () => _createBannerAd(slot));
+    final isLoaded = _loadedBannerSlots.contains(slot);
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      alignment: Alignment.center,
+      height: 60,
+      child: isLoaded
+          ? SizedBox(
+              width: ad.size.width.toDouble(),
+              height: ad.size.height.toDouble(),
+              child: AdWidget(ad: ad),
+            )
+          : const SizedBox.shrink(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<AppProvider>(context);
@@ -109,6 +199,8 @@ class _HomePageState extends State<HomePage> {
         .where((j) =>
             j.prayerTitle.toLowerCase().contains(_searchQuery.toLowerCase()))
         .toList();
+    final adCount = _adCountForPrayerCount(filteredPrayers.length);
+    final listItemCount = filteredPrayers.length + adCount;
 
     return Scaffold(
       appBar: AppBar(
@@ -199,9 +291,14 @@ class _HomePageState extends State<HomePage> {
               ),
             Expanded(
               child: ListView.builder(
-                itemCount: filteredPrayers.length,
+                itemCount: listItemCount,
                 itemBuilder: (context, index) {
-                  final prayer = filteredPrayers[index];
+                  if (_isAdIndex(index)) {
+                    final slot = index ~/ (_prayersPerAd + 1);
+                    return _buildBannerTile(slot);
+                  }
+
+                  final prayer = filteredPrayers[_prayerIndexFromListIndex(index)];
                   return Card(
                     margin:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

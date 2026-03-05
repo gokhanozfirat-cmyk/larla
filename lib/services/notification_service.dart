@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/foundation.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 
@@ -72,6 +73,17 @@ class NotificationService {
   Future<void> _ensureInitialized() async {
     if (_initialized) return;
     await initialize();
+  }
+
+  Future<bool> _isNotificationPermissionGranted() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return true;
+    }
+    final enabled = await flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.areNotificationsEnabled();
+    return enabled ?? false;
   }
 
   static void onDidReceiveNotificationResponse(
@@ -186,7 +198,7 @@ class NotificationService {
   }
 
   // Tüm ezan bildirimlerini planla
-  Future<void> scheduleAllEzanNotifications({
+  Future<bool> scheduleAllEzanNotifications({
     String? fajrTime,
     String? dhuhrTime,
     String? asrTime,
@@ -195,6 +207,11 @@ class NotificationService {
   }) async {
     // Önce tüm ezan bildirimlerini iptal et
     await _ensureInitialized();
+    final hasPermission = await _isNotificationPermissionGranted();
+    if (!hasPermission) {
+      print('Ezan bildirimleri planlanamadi: Bildirim izni kapali');
+      return false;
+    }
     await cancelAllEzanNotifications();
 
     if (fajrTime != null && fajrTime.isNotEmpty) {
@@ -232,6 +249,10 @@ class NotificationService {
         time: ishaTime,
       );
     }
+    final pending =
+        await flutterLocalNotificationsPlugin.pendingNotificationRequests();
+    print('Toplam planli yerel bildirim: ${pending.length}');
+    return true;
   }
 
   // Tüm ezan bildirimlerini iptal et

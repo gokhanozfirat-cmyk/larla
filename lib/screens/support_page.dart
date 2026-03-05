@@ -376,7 +376,7 @@ class _SupportPageState extends State<SupportPage> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  product?.price ?? package.price,
+                  product?.price ?? 'Play fiyati yukleniyor',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

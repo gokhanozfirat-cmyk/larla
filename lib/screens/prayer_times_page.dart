@@ -183,7 +183,8 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
 
     // Bildirimleri ayarla
     if (_ezanNotificationEnabled) {
-      await NotificationService().scheduleAllEzanNotifications(
+      final scheduled =
+          await NotificationService().scheduleAllEzanNotifications(
         fajrTime: fajrTimeController.text,
         dhuhrTime: dhuhrTimeController.text,
         asrTime: asrTimeController.text,
@@ -191,7 +192,13 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
         ishaTime: ishaTimeController.text,
       );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ezan bildirimleri aktif edildi! 🕌')),
+        SnackBar(
+          content: Text(
+            scheduled
+                ? 'Ezan bildirimleri aktif edildi! 🕌'
+                : 'Bildirim izni kapali. Telefon ayarlarindan izin verin.',
+          ),
+        ),
       );
     } else {
       await NotificationService().cancelAllEzanNotifications();
