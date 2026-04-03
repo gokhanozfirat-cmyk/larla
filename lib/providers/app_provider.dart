@@ -39,21 +39,18 @@ class AppProvider with ChangeNotifier {
       _prayersSubscription = stream.listen(
         (prayers) {
           if (prayers.isNotEmpty) {
-            print('Prayers updated from Supabase: ${prayers.length} items');
             _prayers = prayers;
             notifyListeners();
           }
         },
         onError: (error) {
-          print('Realtime error: $error');
-          // Hata durumunda 10 saniye sonra yeniden bağlan
           Future.delayed(const Duration(seconds: 10), () {
             _listenToPrayers();
           });
         },
       );
     } catch (e) {
-      print('Error setting up realtime listener: $e');
+      // Realtime listener kurulamadı
     }
   }
 
@@ -66,7 +63,7 @@ class AppProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print('Error refreshing prayers: $e');
+      // Yenileme başarısız
     }
   }
 
@@ -91,14 +88,10 @@ class AppProvider with ChangeNotifier {
   }
 
   void addPrayer(Prayer prayer) async {
-    // Supabase'e ekle
-    final success = await _supabaseService.addPrayer(prayer);
-    if (!success) {
-      // Offline fallback - yerel kaydet
-      _prayers.add(prayer);
-      notifyListeners();
-      _savePrayers();
-    }
+    _prayers.add(prayer);
+    notifyListeners();
+    _savePrayers();
+    await _supabaseService.addPrayer(prayer);
   }
 
   void startJourney(Journey journey) {
@@ -109,14 +102,10 @@ class AppProvider with ChangeNotifier {
   }
 
   void removePrayer(String id) async {
-    // Supabase'den sil
-    final success = await _supabaseService.deletePrayer(id);
-    if (!success) {
-      // Offline fallback
-      _prayers.removeWhere((p) => p.id == id);
-      notifyListeners();
-      _savePrayers();
-    }
+    _prayers.removeWhere((p) => p.id == id);
+    notifyListeners();
+    _savePrayers();
+    await _supabaseService.deletePrayer(id);
   }
 
   void removeJourney(String id) {
@@ -150,7 +139,6 @@ class AppProvider with ChangeNotifier {
           try {
             return Prayer.fromJson(jsonDecode(json));
           } catch (e) {
-            print('Error parsing prayer: $e');
             return null;
           }
         })
@@ -163,7 +151,6 @@ class AppProvider with ChangeNotifier {
           try {
             return Journey.fromJson(jsonDecode(json));
           } catch (e) {
-            print('Error parsing journey: $e');
             return null;
           }
         })
@@ -177,7 +164,7 @@ class AppProvider with ChangeNotifier {
         final decoded = jsonDecode(prayerTimesJson);
         _prayerTimes = PrayerTimes.fromJson(decoded);
       } catch (e) {
-        print('Error loading prayer times: $e');
+        // Namaz vakitleri yüklenemedi
       }
     }
 
@@ -215,7 +202,7 @@ class AppProvider with ChangeNotifier {
           notifyListeners();
         }
       } catch (e) {
-        print('Error loading prayers from Supabase: $e');
+        // Supabase'den dualar yüklenemedi
       }
     });
   }
@@ -227,7 +214,6 @@ class AppProvider with ChangeNotifier {
       _prayers = jsonList.map((json) => Prayer.fromJson(json)).toList();
       _savePrayers();
     } catch (e) {
-      print('Error loading default prayers: $e');
       // If loading assets fails, do not inject hardcoded sample prayers.
       // Leave `_prayers` as-is (empty) so app data reflects real data.
     }

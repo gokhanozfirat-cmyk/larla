@@ -118,7 +118,7 @@ class _JourneysPageState extends State<JourneysPage> {
             ),
           ],
         ),
-      );
+      ).then((_) => controller.dispose());
       return;
     }
 
@@ -172,10 +172,10 @@ class _JourneysPageState extends State<JourneysPage> {
 
     void _showAddJourneyDialog(BuildContext context) {
       final provider = Provider.of<AppProvider>(context, listen: false);
-      final _titleController = TextEditingController();
-      final _contentController = TextEditingController();
-      final _daysController = TextEditingController();
-      final _timesController = TextEditingController();
+      final titleController = TextEditingController();
+      final contentController = TextEditingController();
+      final daysController = TextEditingController();
+      final timesController = TextEditingController();
 
       showDialog(
         context: context,
@@ -186,21 +186,21 @@ class _JourneysPageState extends State<JourneysPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  controller: _titleController,
+                  controller: titleController,
                   decoration: const InputDecoration(labelText: 'Yolculuk Adı'),
                 ),
                 TextField(
-                  controller: _contentController,
+                  controller: contentController,
                   decoration: const InputDecoration(labelText: 'Dua İçeriği'),
                   maxLines: 3,
                 ),
                 TextField(
-                  controller: _daysController,
+                  controller: daysController,
                   decoration: const InputDecoration(labelText: 'Kaç Gün Okuyacaksın?'),
                   keyboardType: TextInputType.number,
                 ),
                 TextField(
-                  controller: _timesController,
+                  controller: timesController,
                   decoration: const InputDecoration(labelText: 'Günde Kaç Kere Okuyacaksın?'),
                   keyboardType: TextInputType.number,
                 ),
@@ -217,10 +217,10 @@ class _JourneysPageState extends State<JourneysPage> {
                 final journey = Journey(
                   id: DateTime.now().toString(),
                   prayerId: 'manual_${DateTime.now().toString()}',
-                  prayerTitle: _titleController.text.isEmpty ? 'Manuel Yolculuk' : _titleController.text,
-                  content: _contentController.text,
-                  totalDays: _daysController.text.isEmpty ? null : int.tryParse(_daysController.text),
-                  timesPerDay: _timesController.text.isEmpty ? null : int.tryParse(_timesController.text),
+                  prayerTitle: titleController.text.isEmpty ? 'Manuel Yolculuk' : titleController.text,
+                  content: contentController.text,
+                  totalDays: daysController.text.isEmpty ? null : int.tryParse(daysController.text),
+                  timesPerDay: timesController.text.isEmpty ? null : int.tryParse(timesController.text),
                 );
                 provider.startJourney(journey);
                 Navigator.pop(context);
@@ -229,7 +229,12 @@ class _JourneysPageState extends State<JourneysPage> {
             ),
           ],
         ),
-      );
+      ).then((_) {
+        titleController.dispose();
+        contentController.dispose();
+        daysController.dispose();
+        timesController.dispose();
+      });
     }
   @override
   void dispose() {
@@ -474,7 +479,7 @@ class _JourneysPageState extends State<JourneysPage> {
                                         ),
                                       ],
                                     ),
-                                  );
+                                  ).then((_) => controller.dispose());
                                 } : null,
                                 child: const Text('Bugün Okudum'),
                               ),
@@ -509,7 +514,7 @@ class _JourneysPageState extends State<JourneysPage> {
                                       ),
                                     ],
                                   ),
-                                );
+                                ).then((_) => controller.dispose());
                               } : null,
                               child: const Text('Yanlış Giriş'),
                               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -619,7 +624,7 @@ class _JourneysPageState extends State<JourneysPage> {
                                         ),
                                       ],
                                     ),
-                                  );
+                                  ).then((_) => controller.dispose());
                                 },
                                 child: const Text('Bugün Okudum'),
                               ),
@@ -654,7 +659,7 @@ class _JourneysPageState extends State<JourneysPage> {
                                       ),
                                     ],
                                   ),
-                                );
+                                ).then((_) => controller.dispose());
                               },
                               child: const Text('Yanlış Giriş'),
                               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),

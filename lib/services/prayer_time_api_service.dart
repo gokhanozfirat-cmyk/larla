@@ -14,25 +14,16 @@ class PrayerTimeApiService {
 
     // Konum servisi açık mı kontrol et
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      print('Konum servisi kapalı');
-      return null;
-    }
+    if (!serviceEnabled) return null;
 
     // İzin kontrolü
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        print('Konum izni reddedildi');
-        return null;
-      }
+      if (permission == LocationPermission.denied) return null;
     }
 
-    if (permission == LocationPermission.deniedForever) {
-      print('Konum izni kalıcı olarak reddedildi');
-      return null;
-    }
+    if (permission == LocationPermission.deniedForever) return null;
 
     // Konumu al
     try {
@@ -41,7 +32,6 @@ class PrayerTimeApiService {
         timeLimit: const Duration(seconds: 10),
       );
     } catch (e) {
-      print('Konum alınamadı: $e');
       return null;
     }
   }
@@ -72,11 +62,9 @@ class PrayerTimeApiService {
           'isha': timings['Isha'] ?? '', // Yatsı
         };
       } else {
-        print('API hatası: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('Namaz vakitleri alınamadı: $e');
       return null;
     }
   }

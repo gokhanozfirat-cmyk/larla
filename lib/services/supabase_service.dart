@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/prayer.dart';
-import '../main.dart' show isSupabaseInitialized;
 
 class SupabaseService {
+  static bool isInitialized = false;
+
   SupabaseClient? get _client {
     try {
-      if (!isSupabaseInitialized) return null;
+      if (!isInitialized) return null;
       return Supabase.instance.client;
     } catch (e) {
       return null;
@@ -15,10 +16,7 @@ class SupabaseService {
 
   // Tüm duaları getir (timeout ile)
   Future<List<Prayer>> getPrayers() async {
-    if (_client == null) {
-      print('Supabase not ready yet');
-      return [];
-    }
+    if (_client == null) return [];
     try {
       final response = await _client!
           .from('prayers')
@@ -39,7 +37,6 @@ class SupabaseService {
               ))
           .toList();
     } catch (e) {
-      print('Error fetching prayers: $e');
       return [];
     }
   }
@@ -59,7 +56,6 @@ class SupabaseService {
       });
       return true;
     } catch (e) {
-      print('Error adding prayer: $e');
       return false;
     }
   }
@@ -71,7 +67,6 @@ class SupabaseService {
       await _client!.from('prayers').delete().eq('id', id);
       return true;
     } catch (e) {
-      print('Error deleting prayer: $e');
       return false;
     }
   }
@@ -91,43 +86,32 @@ class SupabaseService {
       }).eq('id', prayer.id);
       return true;
     } catch (e) {
-      print('Error updating prayer: $e');
       return false;
     }
   }
 
   // Realtime değişiklikleri dinle
   Stream<List<Prayer>> watchPrayers() {
-    if (_client == null) {
-      print('Supabase not ready for realtime');
-      return Stream.value(<Prayer>[]);
-    }
+    if (_client == null) return Stream.value(<Prayer>[]);
     try {
       return _client!
           .from('prayers')
           .stream(primaryKey: ['id'])
           .order('created_at', ascending: true)
-          .map((data) {
-            print('Realtime update received: ${data.length} prayers');
-            return data
-                .map((json) => Prayer(
-                      id: json['id'],
-                      title: json['title'] ?? '',
-                      description: json['description'] ?? '',
-                      arabicContent: json['arabic_content'] ?? '',
-                      content: json['content'] ?? '',
-                      hasCondition: json['has_condition'] ?? false,
-                      days: json['days'],
-                      timesPerDay: json['times_per_day'],
-                    ))
-                .toList();
-          })
-          .handleError((error) {
-            print('Realtime stream error: $error');
-            return <Prayer>[];
-          });
+          .map((data) => data
+              .map((json) => Prayer(
+                    id: json['id'],
+                    title: json['title'] ?? '',
+                    description: json['description'] ?? '',
+                    arabicContent: json['arabic_content'] ?? '',
+                    content: json['content'] ?? '',
+                    hasCondition: json['has_condition'] ?? false,
+                    days: json['days'],
+                    timesPerDay: json['times_per_day'],
+                  ))
+              .toList())
+          .handleError((error) => <Prayer>[]);
     } catch (e) {
-      print('Error setting up realtime stream: $e');
       return Stream.value(<Prayer>[]);
     }
   }

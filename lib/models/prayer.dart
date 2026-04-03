@@ -31,11 +31,11 @@ class Prayer {
       };
 
   factory Prayer.fromJson(Map<String, dynamic> json) => Prayer(
-        id: json['id'],
-        title: json['title'],
+        id: json['id'] ?? '',
+        title: json['title'] ?? '',
         description: json['description'] ?? '',
         arabicContent: json['arabicContent'] ?? '',
-        content: json['content'],
+        content: json['content'] ?? '',
         hasCondition: json['hasCondition'] ?? false,
         days: json['days'],
         timesPerDay: json['timesPerDay'],

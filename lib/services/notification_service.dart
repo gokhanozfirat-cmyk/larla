@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 
@@ -7,6 +8,7 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
   bool _initialized = false;
+  bool _timezoneInitialized = false;
 
   NotificationService._internal();
 
@@ -25,6 +27,7 @@ class NotificationService {
     try {
       if (_initialized) return;
       tz_data.initializeTimeZones();
+      await _initializeLocalTimezone();
       flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
       const AndroidInitializationSettings initializationSettingsAndroid =
@@ -51,7 +54,7 @@ class NotificationService {
                 AndroidFlutterLocalNotificationsPlugin>()
             ?.requestNotificationsPermission();
       } catch (e) {
-        print('Android notification permission request failed: $e');
+        // Android bildirim izni isteği başarısız
       }
 
       // Request permissions for iOS
@@ -65,7 +68,6 @@ class NotificationService {
           );
       _initialized = true;
     } catch (e) {
-      print('Error initializing notifications: $e');
       rethrow;
     }
   }
@@ -73,6 +75,35 @@ class NotificationService {
   Future<void> _ensureInitialized() async {
     if (_initialized) return;
     await initialize();
+  }
+
+  Future<void> _initializeLocalTimezone() async {
+    if (_timezoneInitialized) return;
+    try {
+      final timezoneName = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timezoneName));
+      _timezoneInitialized = true;
+    } catch (e) {
+      _timezoneInitialized = true;
+    }
+  }
+
+  DateTime? _parseTimeToDate(String time) {
+    final sanitized = time.trim();
+    final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(sanitized);
+    if (match == null) return null;
+
+    final hour = int.tryParse(match.group(1)!);
+    final minute = int.tryParse(match.group(2)!);
+    if (hour == null || minute == null) return null;
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+
+    final now = DateTime.now();
+    var scheduledDate = DateTime(now.year, now.month, now.day, hour, minute);
+    if (!scheduledDate.isAfter(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    return scheduledDate;
   }
 
   Future<bool> _isNotificationPermissionGranted() async {
@@ -121,10 +152,11 @@ class NotificationService {
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time,
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
       );
     } catch (e) {
-      print('Error scheduling notification: $e');
+      // Bildirim planlanamadı
     }
   }
 
@@ -133,31 +165,20 @@ class NotificationService {
       await _ensureInitialized();
       await flutterLocalNotificationsPlugin.cancel(journeyId.hashCode);
     } catch (e) {
-      print('Error canceling notification: $e');
+      // Bildirim iptal edilemedi
     }
   }
 
   // Ezan vakti bildirimi zamanla
-  Future<void> scheduleEzanNotification({
+  Future<bool> scheduleEzanNotification({
     required int id,
     required String prayerName,
     required String time, // "HH:mm" formatında
   }) async {
     try {
       await _ensureInitialized();
-      final parts = time.split(':');
-      if (parts.length != 2) return;
-
-      final hour = int.parse(parts[0]);
-      final minute = int.parse(parts[1]);
-
-      final now = DateTime.now();
-      var scheduledDate = DateTime(now.year, now.month, now.day, hour, minute);
-
-      // Eğer vakit geçmişse yarın için planla
-      if (scheduledDate.isBefore(now)) {
-        scheduledDate = scheduledDate.add(const Duration(days: 1));
-      }
+      final scheduledDate = _parseTimeToDate(time);
+      if (scheduledDate == null) return false;
 
       final tz.TZDateTime tzScheduledDate =
           tz.TZDateTime.from(scheduledDate, tz.local);
@@ -189,11 +210,12 @@ class NotificationService {
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time, // Her gün tekrarla
-        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
       );
-      print('Ezan bildirimi planlandı: $prayerName - $time');
+      return true;
     } catch (e) {
-      print('Error scheduling ezan notification: $e');
+      return false;
     }
   }
 
@@ -208,51 +230,51 @@ class NotificationService {
     // Önce tüm ezan bildirimlerini iptal et
     await _ensureInitialized();
     final hasPermission = await _isNotificationPermissionGranted();
-    if (!hasPermission) {
-      print('Ezan bildirimleri planlanamadi: Bildirim izni kapali');
-      return false;
-    }
+    if (!hasPermission) return false;
     await cancelAllEzanNotifications();
+    var scheduledCount = 0;
 
     if (fajrTime != null && fajrTime.isNotEmpty) {
-      await scheduleEzanNotification(
+      final ok = await scheduleEzanNotification(
         id: _fajrNotificationId,
         prayerName: 'Sabah',
         time: fajrTime,
       );
+      if (ok) scheduledCount++;
     }
     if (dhuhrTime != null && dhuhrTime.isNotEmpty) {
-      await scheduleEzanNotification(
+      final ok = await scheduleEzanNotification(
         id: _dhuhrNotificationId,
         prayerName: 'Öğle',
         time: dhuhrTime,
       );
+      if (ok) scheduledCount++;
     }
     if (asrTime != null && asrTime.isNotEmpty) {
-      await scheduleEzanNotification(
+      final ok = await scheduleEzanNotification(
         id: _asrNotificationId,
         prayerName: 'İkindi',
         time: asrTime,
       );
+      if (ok) scheduledCount++;
     }
     if (maghribTime != null && maghribTime.isNotEmpty) {
-      await scheduleEzanNotification(
+      final ok = await scheduleEzanNotification(
         id: _maghribNotificationId,
         prayerName: 'Akşam',
         time: maghribTime,
       );
+      if (ok) scheduledCount++;
     }
     if (ishaTime != null && ishaTime.isNotEmpty) {
-      await scheduleEzanNotification(
+      final ok = await scheduleEzanNotification(
         id: _ishaNotificationId,
         prayerName: 'Yatsı',
         time: ishaTime,
       );
+      if (ok) scheduledCount++;
     }
-    final pending =
-        await flutterLocalNotificationsPlugin.pendingNotificationRequests();
-    print('Toplam planli yerel bildirim: ${pending.length}');
-    return true;
+    return scheduledCount > 0;
   }
 
   // Tüm ezan bildirimlerini iptal et
@@ -265,7 +287,7 @@ class NotificationService {
       await flutterLocalNotificationsPlugin.cancel(_maghribNotificationId);
       await flutterLocalNotificationsPlugin.cancel(_ishaNotificationId);
     } catch (e) {
-      print('Error canceling ezan notifications: $e');
+      // Ezan bildirimleri iptal edilemedi
     }
   }
 }

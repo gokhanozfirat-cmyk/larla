@@ -40,14 +40,13 @@ class VersionService {
         }
       }
     } catch (e) {
-      // Hata durumunda sessizce devam et
-      print('Version check failed: $e');
+      // Versiyon kontrolü başarısız, sessizce devam et
     }
   }
 
   static bool _isVersionLower(String current, String target) {
-    final currentParts = current.split('.').map(int.parse).toList();
-    final targetParts = target.split('.').map(int.parse).toList();
+    final currentParts = current.split('.').map((p) => int.tryParse(p) ?? 0).toList();
+    final targetParts = target.split('.').map((p) => int.tryParse(p) ?? 0).toList();
 
     for (int i = 0; i < targetParts.length; i++) {
       if (i >= currentParts.length) return true;

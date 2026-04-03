@@ -85,15 +85,6 @@ class Journey {
            lastCompletionDate.year == today.year;
   }
 
-  bool canReadAnotherDayToday() {
-    if (timesPerDay == null || !hasCompletedTodaysReading()) {
-      return false;
-    }
-    // Count how many times we've completed reading today
-    // This is a simple check - if we completed today, we can't start another day
-    return false;
-  }
-
   Map<String, dynamic> toJson() => {
         'id': id,
         'prayerId': prayerId,
@@ -120,7 +111,7 @@ class Journey {
         currentDay: json['currentDay'] ?? 0,
         currentReadCount: json['currentReadCount'] ?? 0,
         totalReads: json['totalReads'] ?? 0,
-        lastReadDate: DateTime.parse(json['lastReadDate']),
+        lastReadDate: json['lastReadDate'] != null ? DateTime.parse(json['lastReadDate']) : DateTime(2000),
         lastCompletionDate: json['lastCompletionDate'] != null 
             ? DateTime.parse(json['lastCompletionDate']) 
             : DateTime(2000),

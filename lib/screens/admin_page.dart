@@ -26,6 +26,17 @@ class _AdminPageState extends State<AdminPage> {
   bool _hasCondition = false;
 
   @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _arabicContentController.dispose();
+    _contentController.dispose();
+    _daysController.dispose();
+    _timesController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final provider = Provider.of<AppProvider>(context);
 
@@ -104,9 +115,21 @@ class _AdminPageState extends State<AdminPage> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
+                  if (_titleController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Dua başlığı boş olamaz.')),
+                    );
+                    return;
+                  }
+                  if (_contentController.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Dua içeriği boş olamaz.')),
+                    );
+                    return;
+                  }
                   final prayer = Prayer(
                     id: DateTime.now().toString(),
-                    title: _titleController.text,
+                    title: _titleController.text.trim(),
                     description: _descriptionController.text,
                     arabicContent: _arabicContentController.text,
                     content: _contentController.text,

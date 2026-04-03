@@ -87,14 +87,30 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
           await PrayerTimeApiService.fetchPrayerTimesForCurrentLocation();
 
       if (times != null) {
+        final cleanedFajr = _cleanTime(times['fajr'] ?? '');
+        final cleanedDhuhr = _cleanTime(times['dhuhr'] ?? '');
+        final cleanedAsr = _cleanTime(times['asr'] ?? '');
+        final cleanedMaghrib = _cleanTime(times['maghrib'] ?? '');
+        final cleanedIsha = _cleanTime(times['isha'] ?? '');
+
         setState(() {
           // API'den gelen saatler "HH:mm (TZ)" formatında olabilir, sadece "HH:mm" al
-          fajrTimeController.text = _cleanTime(times['fajr'] ?? '');
-          dhuhrTimeController.text = _cleanTime(times['dhuhr'] ?? '');
-          asrTimeController.text = _cleanTime(times['asr'] ?? '');
-          maghribTimeController.text = _cleanTime(times['maghrib'] ?? '');
-          ishaTimeController.text = _cleanTime(times['isha'] ?? '');
+          fajrTimeController.text = cleanedFajr;
+          dhuhrTimeController.text = cleanedDhuhr;
+          asrTimeController.text = cleanedAsr;
+          maghribTimeController.text = cleanedMaghrib;
+          ishaTimeController.text = cleanedIsha;
         });
+
+        // Yeni vakitleri kalıcı olarak kaydet
+        final provider = Provider.of<AppProvider>(context, listen: false);
+        final prayerTimes = provider.prayerTimes;
+        prayerTimes.fajrTime = cleanedFajr;
+        prayerTimes.dhuhrTime = cleanedDhuhr;
+        prayerTimes.asrTime = cleanedAsr;
+        prayerTimes.maghribTime = cleanedMaghrib;
+        prayerTimes.ishaTime = cleanedIsha;
+        provider.updatePrayerTimes(prayerTimes);
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -102,6 +118,11 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
             backgroundColor: Colors.green,
           ),
         );
+
+        // Ezan bildirimi açıksa yeni vakitlerle otomatik yeniden planla
+        if (_ezanNotificationEnabled) {
+          await _saveEzanTimes(showFeedback: false);
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -168,7 +189,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
     }
   }
 
-  void _saveEzanTimes() async {
+  Future<void> _saveEzanTimes({bool showFeedback = true}) async {
     final provider = Provider.of<AppProvider>(context, listen: false);
     final prayerTimes = provider.prayerTimes;
 
@@ -191,20 +212,24 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
         maghribTime: maghribTimeController.text,
         ishaTime: ishaTimeController.text,
       );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            scheduled
-                ? 'Ezan bildirimleri aktif edildi! 🕌'
-                : 'Bildirim izni kapali. Telefon ayarlarindan izin verin.',
+      if (showFeedback && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              scheduled
+                  ? 'Ezan bildirimleri aktif edildi! 🕌'
+                  : 'Bildirim planlanamadı. Vakitleri ve bildirim izinlerini kontrol edin.',
+            ),
           ),
-        ),
-      );
+        );
+      }
     } else {
       await NotificationService().cancelAllEzanNotifications();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ezan bildirimleri kapatıldı')),
-      );
+      if (showFeedback && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ezan bildirimleri kapatıldı')),
+        );
+      }
     }
   }
 
@@ -301,12 +326,14 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
                           ),
                           value: _ezanNotificationEnabled,
                           activeColor: Colors.green,
-                          onChanged: _isLoadingPrayerTimes ? null : (value) {
-                            setState(() {
-                              _ezanNotificationEnabled = value;
-                            });
-                            _saveEzanTimes(); // Ayarları anında kaydet ve bildirimleri ayarla
-                          },
+                          onChanged: _isLoadingPrayerTimes
+                              ? null
+                              : (value) {
+                                  setState(() {
+                                    _ezanNotificationEnabled = value;
+                                  });
+                                  _saveEzanTimes(); // Ayarları anında kaydet ve bildirimleri ayarla
+                                },
                         ),
                         const Divider(),
 

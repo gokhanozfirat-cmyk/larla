@@ -22,6 +22,7 @@ class _QiblaPageState extends State<QiblaPage> {
   double? _lat;
   double? _lon;
   double? _heading;
+  double? _lastHeading;
   StreamSubscription<CompassEvent>? _compassSub;
 
   @override
@@ -41,9 +42,14 @@ class _QiblaPageState extends State<QiblaPage> {
     _compassSub = FlutterCompass.events?.listen(
       (event) {
         if (!mounted) return;
-        setState(() {
-          _heading = event.heading;
-        });
+        final newHeading = event.heading;
+        if (newHeading == null) return;
+        if (_lastHeading == null || (newHeading - _lastHeading!).abs() > 1.0) {
+          _lastHeading = newHeading;
+          setState(() {
+            _heading = newHeading;
+          });
+        }
       },
       onError: (e) {
         if (!mounted) return;

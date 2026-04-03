@@ -6,9 +6,7 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'providers/app_provider.dart';
 import 'screens/home_page.dart';
 import 'services/notification_service.dart';
-
-// Global flag for Supabase status
-bool isSupabaseInitialized = false;
+import 'services/supabase_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,17 +31,16 @@ Future<void> _initializeServicesInBackground() async {
       url: 'https://hqvlipuglnxjkkicuwtb.supabase.co',
       anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhxdmxpcHVnbG54amtraWN1d3RiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4OTgyODcsImV4cCI6MjA4NDQ3NDI4N30.5nmZs2ijC2kIbBx_IisU2N3w18qk-sKSJbZzzCHk4vY',
     );
-    isSupabaseInitialized = true;
-    print('Supabase initialized successfully');
+    SupabaseService.isInitialized = true;
   } catch (e) {
-    print('Supabase initialization failed: $e');
+    // Supabase başlatılamadı, offline modda devam edilecek
   }
-  
+
   // Bildirimleri başlat
   try {
     await NotificationService().initialize();
   } catch (e) {
-    print('Notification service initialization failed: $e');
+    // Bildirim servisi başlatılamadı
   }
 }
 
@@ -54,6 +51,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Dualarla',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         primaryColor: Colors.green,
         colorScheme: ColorScheme.fromSeed(
