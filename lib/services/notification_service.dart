@@ -196,8 +196,8 @@ class NotificationService {
 
       await flutterLocalNotificationsPlugin.zonedSchedule(
         id,
-        '$prayerName Vakti',
-        '$prayerName vakti girdi. Haydi namaza! 🕌',
+        '$prayerName Namazı Vakti',
+        '$prayerName Namazı Vakti',
         tzScheduledDate,
         const NotificationDetails(
           android: AndroidNotificationDetails(
