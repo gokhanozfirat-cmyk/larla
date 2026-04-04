@@ -70,15 +70,65 @@ class NotificationService {
     }
   }
 
-  DateTime? _parseTimeToDate(String time) {
-    final sanitized = time.trim();
-    final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(sanitized);
-    if (match == null) return null;
+  String _normalizeTimeText(String time) {
+    var normalized = time.trim();
+    if (normalized.isEmpty) return '';
+
+    const digitMap = <String, String>{
+      '٠': '0',
+      '١': '1',
+      '٢': '2',
+      '٣': '3',
+      '٤': '4',
+      '٥': '5',
+      '٦': '6',
+      '٧': '7',
+      '٨': '8',
+      '٩': '9',
+      '۰': '0',
+      '۱': '1',
+      '۲': '2',
+      '۳': '3',
+      '۴': '4',
+      '۵': '5',
+      '۶': '6',
+      '۷': '7',
+      '۸': '8',
+      '۹': '9',
+    };
+    digitMap.forEach((from, to) {
+      normalized = normalized.replaceAll(from, to);
+    });
+
+    normalized = normalized
+        .replaceAll('：', ':')
+        .replaceAll('٫', ':')
+        .replaceAll('.', ':');
+
+    final match = RegExp(r'(\d{1,2})\s*:\s*(\d{1,2})').firstMatch(normalized);
+    if (match == null) return '';
 
     final hour = int.tryParse(match.group(1)!);
     final minute = int.tryParse(match.group(2)!);
+    if (hour == null || minute == null) return '';
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return '';
+
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  }
+
+  String normalizeTimeText(String time) {
+    return _normalizeTimeText(time);
+  }
+
+  DateTime? _parseTimeToDate(String time) {
+    final sanitized = _normalizeTimeText(time);
+    if (sanitized.isEmpty) return null;
+    final parts = sanitized.split(':');
+    if (parts.length != 2) return null;
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
     if (hour == null || minute == null) return null;
-    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
 
     final now = DateTime.now();
     var scheduledDate = DateTime(now.year, now.month, now.day, hour, minute);
@@ -192,37 +242,57 @@ class NotificationService {
       final t = AppStrings.fromPlatform();
       await _ensureInitialized();
       final scheduledDate = _parseTimeToDate(time);
-      if (scheduledDate == null) return false;
+      if (scheduledDate == null) {
+        debugPrint('[EZAN_NOTIFY] Geçersiz saat formatı: "$time"');
+        return false;
+      }
 
       final tz.TZDateTime tzScheduledDate =
           tz.TZDateTime.from(scheduledDate, tz.local);
 
-      await flutterLocalNotificationsPlugin.zonedSchedule(
-        id,
-        t.prayerTimeTitle(prayerName),
-        t.prayerTimeTitle(prayerName),
-        tzScheduledDate,
-        NotificationDetails(
-          android: AndroidNotificationDetails(
-            'ezan_channel',
-            t.ezanChannelName,
-            channelDescription: t.ezanChannelDescription,
-            importance: Importance.max,
-            priority: Priority.high,
-            playSound: true,
-            enableVibration: true,
-          ),
-          iOS: const DarwinNotificationDetails(
-            presentAlert: true,
-            presentBadge: true,
-            presentSound: true,
-          ),
+      final notificationDetails = NotificationDetails(
+        android: AndroidNotificationDetails(
+          'ezan_channel',
+          t.ezanChannelName,
+          channelDescription: t.ezanChannelDescription,
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          enableVibration: true,
         ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        matchDateTimeComponents: DateTimeComponents.time, // Her gün tekrarla
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
       );
+
+      try {
+        await flutterLocalNotificationsPlugin.zonedSchedule(
+          id,
+          t.prayerTimeTitle(prayerName),
+          t.prayerTimeTitle(prayerName),
+          tzScheduledDate,
+          notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          matchDateTimeComponents: DateTimeComponents.time, // Her gün tekrarla
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      } catch (e) {
+        // Bazı cihazlarda `inexactAllowWhileIdle` fallback gerektirebilir.
+        await flutterLocalNotificationsPlugin.zonedSchedule(
+          id,
+          t.prayerTimeTitle(prayerName),
+          t.prayerTimeTitle(prayerName),
+          tzScheduledDate,
+          notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.inexact,
+          matchDateTimeComponents: DateTimeComponents.time,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      }
       return true;
     } catch (e) {
       debugPrint('[EZAN_NOTIFY] scheduleEzanNotification HATA: $e');
@@ -246,51 +316,63 @@ class NotificationService {
     final hasPermission = await requestAndCheckPermission();
     if (!hasPermission) return 'no_permission';
 
-    // En az bir vakit dolu mu kontrol et
-    final times = [fajrTime, dhuhrTime, asrTime, maghribTime, ishaTime];
-    final hasAnyTime = times.any((t) => t != null && t.isNotEmpty);
+    final normalizedFajr = _normalizeTimeText(fajrTime ?? '');
+    final normalizedDhuhr = _normalizeTimeText(dhuhrTime ?? '');
+    final normalizedAsr = _normalizeTimeText(asrTime ?? '');
+    final normalizedMaghrib = _normalizeTimeText(maghribTime ?? '');
+    final normalizedIsha = _normalizeTimeText(ishaTime ?? '');
+
+    // En az bir geçerli vakit var mı kontrol et
+    final times = [
+      normalizedFajr,
+      normalizedDhuhr,
+      normalizedAsr,
+      normalizedMaghrib,
+      normalizedIsha
+    ];
+    final hasAnyTime = times.any((t) => t.isNotEmpty);
     if (!hasAnyTime) return 'no_times';
 
     await cancelAllEzanNotifications();
     var scheduledCount = 0;
 
-    if (fajrTime != null && fajrTime.isNotEmpty) {
+    if (normalizedFajr.isNotEmpty) {
       final ok = await scheduleEzanNotification(
         id: _fajrNotificationId,
         prayerName: t.prayerNameFajr(),
-        time: fajrTime,
+        time: normalizedFajr,
       );
       if (ok) scheduledCount++;
     }
-    if (dhuhrTime != null && dhuhrTime.isNotEmpty) {
+    if (normalizedDhuhr.isNotEmpty) {
       final ok = await scheduleEzanNotification(
         id: _dhuhrNotificationId,
         prayerName: t.prayerNameDhuhr(),
-        time: dhuhrTime,
+        time: normalizedDhuhr,
       );
       if (ok) scheduledCount++;
     }
-    if (asrTime != null && asrTime.isNotEmpty) {
+    if (normalizedAsr.isNotEmpty) {
       final ok = await scheduleEzanNotification(
         id: _asrNotificationId,
         prayerName: t.prayerNameAsr(),
-        time: asrTime,
+        time: normalizedAsr,
       );
       if (ok) scheduledCount++;
     }
-    if (maghribTime != null && maghribTime.isNotEmpty) {
+    if (normalizedMaghrib.isNotEmpty) {
       final ok = await scheduleEzanNotification(
         id: _maghribNotificationId,
         prayerName: t.prayerNameMaghrib(),
-        time: maghribTime,
+        time: normalizedMaghrib,
       );
       if (ok) scheduledCount++;
     }
-    if (ishaTime != null && ishaTime.isNotEmpty) {
+    if (normalizedIsha.isNotEmpty) {
       final ok = await scheduleEzanNotification(
         id: _ishaNotificationId,
         prayerName: t.prayerNameIsha(),
-        time: ishaTime,
+        time: normalizedIsha,
       );
       if (ok) scheduledCount++;
     }

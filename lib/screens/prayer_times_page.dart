@@ -194,12 +194,30 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
   Future<void> _saveEzanTimes({bool showFeedback = true}) async {
     final provider = Provider.of<AppProvider>(context, listen: false);
     final prayerTimes = provider.prayerTimes;
+    final notificationService = NotificationService();
 
-    prayerTimes.fajrTime = fajrTimeController.text;
-    prayerTimes.dhuhrTime = dhuhrTimeController.text;
-    prayerTimes.asrTime = asrTimeController.text;
-    prayerTimes.maghribTime = maghribTimeController.text;
-    prayerTimes.ishaTime = ishaTimeController.text;
+    final normalizedFajr =
+        notificationService.normalizeTimeText(fajrTimeController.text);
+    final normalizedDhuhr =
+        notificationService.normalizeTimeText(dhuhrTimeController.text);
+    final normalizedAsr =
+        notificationService.normalizeTimeText(asrTimeController.text);
+    final normalizedMaghrib =
+        notificationService.normalizeTimeText(maghribTimeController.text);
+    final normalizedIsha =
+        notificationService.normalizeTimeText(ishaTimeController.text);
+
+    fajrTimeController.text = normalizedFajr;
+    dhuhrTimeController.text = normalizedDhuhr;
+    asrTimeController.text = normalizedAsr;
+    maghribTimeController.text = normalizedMaghrib;
+    ishaTimeController.text = normalizedIsha;
+
+    prayerTimes.fajrTime = normalizedFajr;
+    prayerTimes.dhuhrTime = normalizedDhuhr;
+    prayerTimes.asrTime = normalizedAsr;
+    prayerTimes.maghribTime = normalizedMaghrib;
+    prayerTimes.ishaTime = normalizedIsha;
     prayerTimes.ezanNotificationEnabled = _ezanNotificationEnabled;
 
     provider.updatePrayerTimes(prayerTimes);
@@ -207,11 +225,11 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
     // Bildirimleri ayarla
     if (_ezanNotificationEnabled) {
       final result = await NotificationService().scheduleAllEzanNotifications(
-        fajrTime: fajrTimeController.text,
-        dhuhrTime: dhuhrTimeController.text,
-        asrTime: asrTimeController.text,
-        maghribTime: maghribTimeController.text,
-        ishaTime: ishaTimeController.text,
+        fajrTime: normalizedFajr,
+        dhuhrTime: normalizedDhuhr,
+        asrTime: normalizedAsr,
+        maghribTime: normalizedMaghrib,
+        ishaTime: normalizedIsha,
       );
       if (showFeedback && mounted) {
         final t = AppStrings.of(context);
