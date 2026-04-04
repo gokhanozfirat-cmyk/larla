@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
+import '../l10n/app_strings.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -96,8 +97,8 @@ class NotificationService {
 
     // Android izin kontrolü ve isteği
     if (defaultTargetPlatform == TargetPlatform.android) {
-      final androidPlugin = flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<
+      final androidPlugin =
+          flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
       if (androidPlugin == null) return false;
 
@@ -112,8 +113,8 @@ class NotificationService {
 
     // iOS izin kontrolü ve isteği
     if (defaultTargetPlatform == TargetPlatform.iOS) {
-      final iosPlugin = flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<
+      final iosPlugin =
+          flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
               IOSFlutterLocalNotificationsPlugin>();
       if (iosPlugin == null) return true;
 
@@ -134,6 +135,7 @@ class NotificationService {
   Future<void> scheduleNoonNotification(
       String journeyId, String prayerTitle, int dailyCount) async {
     try {
+      final t = AppStrings.fromPlatform();
       await _ensureInitialized();
       final now = DateTime.now();
       var scheduledDate = DateTime(now.year, now.month, now.day, 12, 0);
@@ -148,18 +150,18 @@ class NotificationService {
 
       await flutterLocalNotificationsPlugin.zonedSchedule(
         journeyId.hashCode,
-        'Dua Hatırlatması',
-        'Bugünkü tekrarlarını unutma! 📖\n$prayerTitle - $dailyCount kez oku',
+        t.prayerReminderTitle,
+        t.prayerReminderBody(prayerTitle, dailyCount),
         tzScheduledDate,
-        const NotificationDetails(
+        NotificationDetails(
           android: AndroidNotificationDetails(
             'dua_reminder',
-            'Dua Hatırlatmaları',
-            channelDescription: 'Günlük dua hatırlatmaları',
+            t.prayerReminderChannelName,
+            channelDescription: t.prayerReminderChannelDescription,
             importance: Importance.max,
             priority: Priority.high,
           ),
-          iOS: DarwinNotificationDetails(),
+          iOS: const DarwinNotificationDetails(),
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time,
@@ -187,6 +189,7 @@ class NotificationService {
     required String time, // "HH:mm" formatında
   }) async {
     try {
+      final t = AppStrings.fromPlatform();
       await _ensureInitialized();
       final scheduledDate = _parseTimeToDate(time);
       if (scheduledDate == null) return false;
@@ -196,20 +199,20 @@ class NotificationService {
 
       await flutterLocalNotificationsPlugin.zonedSchedule(
         id,
-        '$prayerName Namazı Vakti',
-        '$prayerName Namazı Vakti',
+        t.prayerTimeTitle(prayerName),
+        t.prayerTimeTitle(prayerName),
         tzScheduledDate,
-        const NotificationDetails(
+        NotificationDetails(
           android: AndroidNotificationDetails(
             'ezan_channel',
-            'Ezan Bildirimleri',
-            channelDescription: 'Namaz vakti bildirimleri',
+            t.ezanChannelName,
+            channelDescription: t.ezanChannelDescription,
             importance: Importance.max,
             priority: Priority.high,
             playSound: true,
             enableVibration: true,
           ),
-          iOS: DarwinNotificationDetails(
+          iOS: const DarwinNotificationDetails(
             presentAlert: true,
             presentBadge: true,
             presentSound: true,
@@ -236,6 +239,7 @@ class NotificationService {
     String? maghribTime,
     String? ishaTime,
   }) async {
+    final t = AppStrings.fromPlatform();
     await _ensureInitialized();
 
     // İzni kontrol et ve gerekiyorsa iste
@@ -253,7 +257,7 @@ class NotificationService {
     if (fajrTime != null && fajrTime.isNotEmpty) {
       final ok = await scheduleEzanNotification(
         id: _fajrNotificationId,
-        prayerName: 'Sabah',
+        prayerName: t.prayerNameFajr(),
         time: fajrTime,
       );
       if (ok) scheduledCount++;
@@ -261,7 +265,7 @@ class NotificationService {
     if (dhuhrTime != null && dhuhrTime.isNotEmpty) {
       final ok = await scheduleEzanNotification(
         id: _dhuhrNotificationId,
-        prayerName: 'Öğle',
+        prayerName: t.prayerNameDhuhr(),
         time: dhuhrTime,
       );
       if (ok) scheduledCount++;
@@ -269,7 +273,7 @@ class NotificationService {
     if (asrTime != null && asrTime.isNotEmpty) {
       final ok = await scheduleEzanNotification(
         id: _asrNotificationId,
-        prayerName: 'İkindi',
+        prayerName: t.prayerNameAsr(),
         time: asrTime,
       );
       if (ok) scheduledCount++;
@@ -277,7 +281,7 @@ class NotificationService {
     if (maghribTime != null && maghribTime.isNotEmpty) {
       final ok = await scheduleEzanNotification(
         id: _maghribNotificationId,
-        prayerName: 'Akşam',
+        prayerName: t.prayerNameMaghrib(),
         time: maghribTime,
       );
       if (ok) scheduledCount++;
@@ -285,7 +289,7 @@ class NotificationService {
     if (ishaTime != null && ishaTime.isNotEmpty) {
       final ok = await scheduleEzanNotification(
         id: _ishaNotificationId,
-        prayerName: 'Yatsı',
+        prayerName: t.prayerNameIsha(),
         time: ishaTime,
       );
       if (ok) scheduledCount++;

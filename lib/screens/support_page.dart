@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import '../l10n/app_strings.dart';
 
 class SupportPage extends StatefulWidget {
   const SupportPage({super.key});
@@ -24,36 +25,38 @@ class _SupportPageState extends State<SupportPage> {
     'diamond_supporter', // Elmas Destekçi - 10000 TL
   };
 
-  final Map<String, SupportPackage> _packageInfo = {
-    'bronze_supporter': SupportPackage(
-      name: 'Bronz Destekçi',
-      icon: Icons.workspace_premium,
-      color: const Color(0xFFCD7F32),
-      description: 'Uygulamaya küçük bir katkıda bulunun',
-      price: '50 TL',
-    ),
-    'silver_supporter': SupportPackage(
-      name: 'Gümüş Destekçi',
-      icon: Icons.workspace_premium,
-      color: Colors.grey.shade400,
-      description: 'Uygulamanın gelişimine destek olun',
-      price: '250 TL',
-    ),
-    'gold_supporter': SupportPackage(
-      name: 'Altın Destekçi',
-      icon: Icons.workspace_premium,
-      color: const Color(0xFFFFD700),
-      description: 'Büyük bir destek verin',
-      price: '1.000 TL',
-    ),
-    'diamond_supporter': SupportPackage(
-      name: 'Elmas Destekçi',
-      icon: Icons.diamond,
-      color: const Color(0xFFB9F2FF),
-      description: 'En değerli destekçimiz olun',
-      price: '10.000 TL',
-    ),
-  };
+  Map<String, SupportPackage> _packageInfo(AppStrings t) {
+    return {
+      'bronze_supporter': SupportPackage(
+        name: t.supportPackageName('bronze_supporter'),
+        icon: Icons.workspace_premium,
+        color: const Color(0xFFCD7F32),
+        description: t.supportPackageDescription('bronze_supporter'),
+        price: '50 TL',
+      ),
+      'silver_supporter': SupportPackage(
+        name: t.supportPackageName('silver_supporter'),
+        icon: Icons.workspace_premium,
+        color: Colors.grey.shade400,
+        description: t.supportPackageDescription('silver_supporter'),
+        price: '250 TL',
+      ),
+      'gold_supporter': SupportPackage(
+        name: t.supportPackageName('gold_supporter'),
+        icon: Icons.workspace_premium,
+        color: const Color(0xFFFFD700),
+        description: t.supportPackageDescription('gold_supporter'),
+        price: '1.000 TL',
+      ),
+      'diamond_supporter': SupportPackage(
+        name: t.supportPackageName('diamond_supporter'),
+        icon: Icons.diamond,
+        color: const Color(0xFFB9F2FF),
+        description: t.supportPackageDescription('diamond_supporter'),
+        price: '10.000 TL',
+      ),
+    };
+  }
 
   @override
   void initState() {
@@ -115,7 +118,10 @@ class _SupportPageState extends State<SupportPage> {
       } else {
         if (purchaseDetails.status == PurchaseStatus.error) {
           _hideLoadingDialog();
-          _showErrorDialog(purchaseDetails.error?.message ?? 'Bir hata oluştu');
+          _showErrorDialog(
+            purchaseDetails.error?.message ??
+                AppStrings.of(context).scheduleError,
+          );
         } else if (purchaseDetails.status == PurchaseStatus.purchased ||
             purchaseDetails.status == PurchaseStatus.restored) {
           _hideLoadingDialog();
@@ -146,15 +152,16 @@ class _SupportPageState extends State<SupportPage> {
   }
 
   void _showErrorDialog(String message) {
+    final t = AppStrings.of(context);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Hata'),
+        title: Text(t.supportError),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Tamam'),
+            child: Text(t.ok),
           ),
         ],
       ),
@@ -162,15 +169,16 @@ class _SupportPageState extends State<SupportPage> {
   }
 
   void _showThankYouDialog(String productId) {
-    final package = _packageInfo[productId];
+    final t = AppStrings.of(context);
+    final package = _packageInfo(t)[productId];
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.favorite, color: Colors.red),
+            const Icon(Icons.favorite, color: Colors.red),
             const SizedBox(width: 8),
-            const Text('Teşekkürler!'),
+            Text(t.thankYou),
           ],
         ),
         content: Column(
@@ -183,13 +191,13 @@ class _SupportPageState extends State<SupportPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Artık ${package?.name ?? "Destekçi"} oldunuz!',
+              t.supportNowYouAre(package?.name ?? t.supporter),
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Desteğiniz için çok teşekkür ederiz. Allah razı olsun.',
+            Text(
+              t.supportThanksBody,
               textAlign: TextAlign.center,
             ),
           ],
@@ -197,7 +205,7 @@ class _SupportPageState extends State<SupportPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Tamam'),
+            child: Text(t.ok),
           ),
         ],
       ),
@@ -218,9 +226,11 @@ class _SupportPageState extends State<SupportPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppStrings.of(context);
+    final packageInfo = _packageInfo(t);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Destekle'),
+        title: Text(t.support),
         backgroundColor: Colors.green,
       ),
       body: Container(
@@ -245,9 +255,9 @@ class _SupportPageState extends State<SupportPage> {
                       color: Colors.white,
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Dualarla\'yı Destekleyin',
-                      style: TextStyle(
+                    Text(
+                      t.supportPageTitle,
+                      style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -255,7 +265,7 @@ class _SupportPageState extends State<SupportPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Desteğiniz sayesinde uygulamayı geliştirmeye\nve daha fazla içerik eklemeye devam edebiliyoruz.',
+                      t.supportPageSubtitle,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
@@ -268,12 +278,12 @@ class _SupportPageState extends State<SupportPage> {
                       // Yüklenen ürünleri göster
                       ..._products.map((product) => _buildSupportCard(
                             productId: product.id,
-                            package: _packageInfo[product.id]!,
+                            package: packageInfo[product.id]!,
                             product: product,
                           ))
                     else
                       // Ürünler yüklenemezse varsayılan kartları göster
-                      ..._packageInfo.entries.map((entry) => _buildSupportCard(
+                      ...packageInfo.entries.map((entry) => _buildSupportCard(
                             productId: entry.key,
                             package: entry.value,
                             product: null,
@@ -281,11 +291,10 @@ class _SupportPageState extends State<SupportPage> {
                     const SizedBox(height: 24),
                     const Divider(),
                     const SizedBox(height: 16),
-                    const Text(
-                      '💚 Tüm destek paketleri tek seferlik bağıştır.\n'
-                      'Desteğiniz direkt uygulama geliştirmeye gider.',
+                    Text(
+                      '💚 ${t.supportFooter}',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 12,
                         color: Colors.grey,
                       ),
@@ -316,10 +325,9 @@ class _SupportPageState extends State<SupportPage> {
           } else {
             // Mağaza kullanılamıyorsa bilgi göster
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                    'Satın alma şu anda kullanılamıyor. Google Play Store\'dan indirdiğinizde aktif olacak.'),
-                duration: Duration(seconds: 3),
+              SnackBar(
+                content: Text(AppStrings.of(context).purchaseUnavailable),
+                duration: const Duration(seconds: 3),
               ),
             );
           }
@@ -376,7 +384,7 @@ class _SupportPageState extends State<SupportPage> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  product?.price ?? 'Play fiyati yukleniyor',
+                  product?.price ?? AppStrings.of(context).playPriceLoading,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,

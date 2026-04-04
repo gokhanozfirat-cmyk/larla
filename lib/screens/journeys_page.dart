@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_strings.dart';
 import '../providers/app_provider.dart';
 import '../models/journey.dart';
 import '../models/prayer.dart';
 import '../services/notification_service.dart';
 import 'support_page.dart';
 import 'home_page.dart';
-import 'admin_page.dart';
 import 'prayer_times_page.dart';
 import 'prayer_detail_page.dart';
 import 'qibla_page.dart';
@@ -21,6 +21,8 @@ class JourneysPage extends StatefulWidget {
 class _JourneysPageState extends State<JourneysPage> {
   final Map<String, int> _tesbihCounters = {};
   final Map<String, TextEditingController> _controllers = {};
+  AppStrings get _t => AppStrings.of(context);
+  String get _languageCode => Localizations.localeOf(context).languageCode;
 
   void _enableReminder(Journey journey) {
     NotificationService().scheduleNoonNotification(
@@ -40,7 +42,7 @@ class _JourneysPageState extends State<JourneysPage> {
   void _processRead(Journey journey, int count) {
     if (count <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lütfen geçerli bir sayı girin.')),
+        SnackBar(content: Text(_t.pleaseEnterValidNumber)),
       );
       return;
     }
@@ -69,7 +71,8 @@ class _JourneysPageState extends State<JourneysPage> {
           if (!completedBefore) {
             journey.currentDay += 1;
           }
-          if (journey.totalDays != null && journey.currentDay >= journey.totalDays!) {
+          if (journey.totalDays != null &&
+              journey.currentDay >= journey.totalDays!) {
             journey.isCompleted = true;
           }
         }
@@ -91,16 +94,16 @@ class _JourneysPageState extends State<JourneysPage> {
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Ne kadar okudun?'),
+          title: Text(_t.howMuchRead),
           content: TextField(
             controller: controller,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Kaç kere okudunuz?'),
+            decoration: InputDecoration(labelText: _t.howManyTimes),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('İptal'),
+              child: Text(_t.cancel),
             ),
             TextButton(
               onPressed: () {
@@ -110,11 +113,11 @@ class _JourneysPageState extends State<JourneysPage> {
                   _processConditionalRead(journey, value);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Lütfen geçerli bir sayı girin.')),
+                    SnackBar(content: Text(_t.pleaseEnterValidNumber)),
                   );
                 }
               },
-              child: const Text('Kaydet'),
+              child: Text(_t.save),
             ),
           ],
         ),
@@ -124,7 +127,7 @@ class _JourneysPageState extends State<JourneysPage> {
 
     if (count > remaining) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Bugün en fazla $remaining kere okuyabilirsiniz.')),
+        SnackBar(content: Text(_t.todayMaxReads(remaining))),
       );
       return;
     }
@@ -133,9 +136,9 @@ class _JourneysPageState extends State<JourneysPage> {
     _processRead(journey, count);
 
     // Show success message
-    String message = 'Okuma kaydedildi!';
+    String message = _t.readingSaved;
     if (journey.hasCompletedTodaysReading()) {
-      message = 'Bugün ${journey.timesPerDay}x okumayı tamamladınız! Gün ${journey.currentDay}';
+      message = _t.dailyGoalCompleted(journey.timesPerDay!, journey.currentDay);
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
@@ -170,72 +173,80 @@ class _JourneysPageState extends State<JourneysPage> {
     );
   }
 
-    void _showAddJourneyDialog(BuildContext context) {
-      final provider = Provider.of<AppProvider>(context, listen: false);
-      final titleController = TextEditingController();
-      final contentController = TextEditingController();
-      final daysController = TextEditingController();
-      final timesController = TextEditingController();
+  void _showAddJourneyDialog(BuildContext context) {
+    final provider = Provider.of<AppProvider>(context, listen: false);
+    final t = AppStrings.of(context);
+    final titleController = TextEditingController();
+    final contentController = TextEditingController();
+    final daysController = TextEditingController();
+    final timesController = TextEditingController();
 
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Manuel Yolculuk Ekle'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Yolculuk Adı'),
-                ),
-                TextField(
-                  controller: contentController,
-                  decoration: const InputDecoration(labelText: 'Dua İçeriği'),
-                  maxLines: 3,
-                ),
-                TextField(
-                  controller: daysController,
-                  decoration: const InputDecoration(labelText: 'Kaç Gün Okuyacaksın?'),
-                  keyboardType: TextInputType.number,
-                ),
-                TextField(
-                  controller: timesController,
-                  decoration: const InputDecoration(labelText: 'Günde Kaç Kere Okuyacaksın?'),
-                  keyboardType: TextInputType.number,
-                ),
-              ],
-            ),
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t.manualJourneyAdd),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: InputDecoration(labelText: t.journeyName),
+              ),
+              TextField(
+                controller: contentController,
+                decoration: InputDecoration(labelText: t.prayerContent),
+                maxLines: 3,
+              ),
+              TextField(
+                controller: daysController,
+                decoration: InputDecoration(labelText: t.howManyDays),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: timesController,
+                decoration: InputDecoration(labelText: t.howManyTimesPerDay),
+                keyboardType: TextInputType.number,
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('İptal'),
-            ),
-            TextButton(
-              onPressed: () {
-                final journey = Journey(
-                  id: DateTime.now().toString(),
-                  prayerId: 'manual_${DateTime.now().toString()}',
-                  prayerTitle: titleController.text.isEmpty ? 'Manuel Yolculuk' : titleController.text,
-                  content: contentController.text,
-                  totalDays: daysController.text.isEmpty ? null : int.tryParse(daysController.text),
-                  timesPerDay: timesController.text.isEmpty ? null : int.tryParse(timesController.text),
-                );
-                provider.startJourney(journey);
-                Navigator.pop(context);
-              },
-              child: const Text('Kaydet'),
-            ),
-          ],
         ),
-      ).then((_) {
-        titleController.dispose();
-        contentController.dispose();
-        daysController.dispose();
-        timesController.dispose();
-      });
-    }
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(t.cancel),
+          ),
+          TextButton(
+            onPressed: () {
+              final journey = Journey(
+                id: DateTime.now().toString(),
+                prayerId: 'manual_${DateTime.now().toString()}',
+                prayerTitle: titleController.text.isEmpty
+                    ? t.manualJourney
+                    : titleController.text,
+                content: contentController.text,
+                totalDays: daysController.text.isEmpty
+                    ? null
+                    : int.tryParse(daysController.text),
+                timesPerDay: timesController.text.isEmpty
+                    ? null
+                    : int.tryParse(timesController.text),
+              );
+              provider.startJourney(journey);
+              Navigator.pop(context);
+            },
+            child: Text(t.save),
+          ),
+        ],
+      ),
+    ).then((_) {
+      titleController.dispose();
+      contentController.dispose();
+      daysController.dispose();
+      timesController.dispose();
+    });
+  }
+
   @override
   void dispose() {
     for (var controller in _controllers.values) {
@@ -248,10 +259,11 @@ class _JourneysPageState extends State<JourneysPage> {
   Widget build(BuildContext context) {
     final provider = Provider.of<AppProvider>(context);
     final journeys = provider.journeys;
+    final t = AppStrings.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Yolculuklarım'),
+        title: Text(t.myJourneys),
         backgroundColor: Colors.green,
         actions: [
           IconButton(
@@ -278,7 +290,8 @@ class _JourneysPageState extends State<JourneysPage> {
             final journey = journeys[index];
             final prayer = provider.prayers.firstWhere(
               (p) => p.id == journey.prayerId,
-              orElse: () => Prayer(id: '', title: journey.prayerTitle, content: 'Manuel yolculuk'),
+              orElse: () => Prayer(
+                  id: '', title: journey.prayerTitle, content: t.manualJourney),
             );
             _tesbihCounters.putIfAbsent(journey.id, () => 0);
             _controllers.putIfAbsent(journey.id, () => TextEditingController());
@@ -289,385 +302,486 @@ class _JourneysPageState extends State<JourneysPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              journey.prayerTitle,
-                              style: TextStyle(fontSize: provider.fontSize + 4, fontWeight: FontWeight.bold),
-                            ),
-                            if (journey.totalDays != null && journey.timesPerDay != null)
-                              Row(
-                                children: [
-                                  Switch(
-                                    value: journey.reminderEnabled,
-                                    onChanged: (value) {
-                                      setState(() {
-                                        journey.reminderEnabled = value;
-                                      });
-                                      if (value) {
-                                        _enableReminder(journey);
-                                      } else {
-                                        _disableReminder(journey);
-                                      }
-                                    },
-                                  ),
-                                  const Text(
-                                    'Bana hatırlat',
-                                    style: TextStyle(fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                          ],
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              _disableReminder(journey);
-                              provider.removeJourney(journey.id);
-                              setState(() {
-                                _tesbihCounters.remove(journey.id);
-                                _controllers.remove(journey.id);
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  if (prayer.description.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Buyrulmuştur:',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            prayer.description,
-                            style: TextStyle(fontSize: provider.fontSize - 2),
-                          ),
-                          const Divider(),
-                        ],
-                      ),
-                    ),
-                  const Text(
-                    'Okunuşunu Göster',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  if ((prayer.arabicContent.isNotEmpty))
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton.icon(
-                        icon: const Icon(Icons.visibility),
-                        label: const Text('Okunuşunu Göster'),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => PrayerDetailPage(prayer: prayer),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  if (journey.totalDays != null && journey.timesPerDay != null)
-                    Column(
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Gün: ${journey.currentDay}/${journey.totalDays}'),
-                        Text('Okuma: ${journey.currentReadCount}/${journey.timesPerDay}'),
-                        Text('Son Okuma: ${journey.lastReadDate.toString().split(' ')[0]}'),
-                        const SizedBox(height: 16),
-                        // Tesbih Counter
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove),
-                              onPressed: (journey.canReadToday() && !journey.isCompleted && !journey.hasCompletedTodaysReading()) ? () {
-                                setState(() {
-                                  if (_tesbihCounters[journey.id]! > 0) {
-                                    _tesbihCounters[journey.id] = _tesbihCounters[journey.id]! - 1;
-                                  }
-                                });
-                              } : null,
-                            ),
-                            GestureDetector(
-                              onTap: (journey.canReadToday() && !journey.isCompleted && !journey.hasCompletedTodaysReading()) ? () {
-                                setState(() {
-                                  _tesbihCounters[journey.id] = _tesbihCounters[journey.id]! + 1;
-                                });
-                              } : null,
-                              child: Container(
-                                width: 80,
-                                height: 80,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: (journey.canReadToday() && !journey.isCompleted && !journey.hasCompletedTodaysReading()) ? Colors.green.shade700 : Colors.grey,
-                                  border: Border.all(color: (journey.canReadToday() && !journey.isCompleted && !journey.hasCompletedTodaysReading()) ? Colors.green.shade900 : Colors.grey.shade600, width: 4),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '${_tesbihCounters[journey.id]}',
-                                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                journey.prayerTitle,
+                                style: TextStyle(
+                                    fontSize: provider.fontSize + 4,
+                                    fontWeight: FontWeight.bold),
                               ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.add),
-                              onPressed: (journey.canReadToday() && !journey.isCompleted && !journey.hasCompletedTodaysReading()) ? () {
-                                setState(() {
-                                  final remaining = journey.timesPerDay! - journey.currentReadCount;
-                                  if (_tesbihCounters[journey.id]! < remaining) {
-                                    _tesbihCounters[journey.id] = _tesbihCounters[journey.id]! + 1;
-                                  }
-                                });
-                              } : null,
-                            ),
-                          ],
+                              if (journey.totalDays != null &&
+                                  journey.timesPerDay != null)
+                                Row(
+                                  children: [
+                                    Switch(
+                                      value: journey.reminderEnabled,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          journey.reminderEnabled = value;
+                                        });
+                                        if (value) {
+                                          _enableReminder(journey);
+                                        } else {
+                                          _disableReminder(journey);
+                                        }
+                                      },
+                                    ),
+                                    Text(
+                                      t.remindMe,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(height: 16),
                         Row(
                           children: [
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: (journey.canReadToday() && !journey.isCompleted && !journey.hasCompletedTodaysReading()) ? () {
-                                  final tesbih = _tesbihCounters[journey.id] ?? 0;
-                                  if (tesbih > 0) {
-                                    _processConditionalRead(journey, tesbih);
-                                    return;
-                                  }
-                                  final controller = TextEditingController();
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('Ne kadar okudun?'),
-                                      content: TextField(
-                                        controller: controller,
-                                        keyboardType: TextInputType.number,
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.pop(context),
-                                          child: const Text('İptal'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () {
-                                            final value = int.tryParse(controller.text) ?? 0;
-                                            Navigator.pop(context);
-                                            if (value > 0) {
-                                              _processConditionalRead(journey, value);
-                                            } else {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(content: Text('Lütfen geçerli bir sayı girin.')),
-                                              );
-                                            }
-                                          },
-                                          child: const Text('Kaydet'),
-                                        ),
-                                      ],
-                                    ),
-                                  ).then((_) => controller.dispose());
-                                } : null,
-                                child: const Text('Bugün Okudum'),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            ElevatedButton(
-                              onPressed: (journey.canReadToday() && !journey.isCompleted && !journey.hasCompletedTodaysReading()) ? () {
-                                final controller = TextEditingController();
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Kaç Eksilteceksin?'),
-                                    content: TextField(
-                                      controller: controller,
-                                      keyboardType: TextInputType.number,
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('İptal'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {
-                                          final deduct = int.tryParse(controller.text) ?? 0;
-                                          setState(() {
-                                            journey.totalReads = (journey.totalReads - deduct).clamp(0, double.infinity).toInt();
-                                          });
-                                          provider.updateJourney(journey);
-                                          Navigator.pop(context);
-                                        },
-                                        child: const Text('Tamam'),
-                                      ),
-                                    ],
-                                  ),
-                                ).then((_) => controller.dispose());
-                              } : null,
-                              child: const Text('Yanlış Giriş'),
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () {
+                                _disableReminder(journey);
+                                provider.removeJourney(journey.id);
+                                setState(() {
+                                  _tesbihCounters.remove(journey.id);
+                                  _controllers.remove(journey.id);
+                                });
+                              },
                             ),
                           ],
                         ),
                       ],
-                    )
-                  else
-                    Column(
-                      children: [
-                        Text('Okunan Gün: ${journey.currentDay}'),
-                        Text('Bugün Okuma: ${journey.currentReadCount}'),
-                        Text('Toplam Okuma: ${journey.totalReads}'),
-                        Text('Son Okuma: ${journey.lastReadDate.toString().split(' ')[0]}'),
-                        const SizedBox(height: 16),
-                        // Tesbih Counter
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                    ),
+                    const SizedBox(height: 8),
+                    if (prayer.localizedDescription(_languageCode).isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            IconButton(
-                              icon: const Icon(Icons.remove),
-                              onPressed: () {
-                                setState(() {
-                                  if (_tesbihCounters[journey.id]! > 0) {
-                                    _tesbihCounters[journey.id] = _tesbihCounters[journey.id]! - 1;
-                                  }
-                                });
-                              },
+                            Text(
+                              t.saidItWas,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
                             ),
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _tesbihCounters[journey.id] = _tesbihCounters[journey.id]! + 1;
-                                });
-                              },
-                              child: Container(
-                                width: 80,
-                                height: 80,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.amber.shade700,
-                                  border: Border.all(color: Colors.amber.shade900, width: 4),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '${_tesbihCounters[journey.id]}',
-                                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                            Text(
+                              prayer.localizedDescription(_languageCode),
+                              style: TextStyle(fontSize: provider.fontSize - 2),
+                            ),
+                            const Divider(),
+                          ],
+                        ),
+                      ),
+                    Text(
+                      t.showRecitation,
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    if ((prayer.arabicContent.isNotEmpty))
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          icon: const Icon(Icons.visibility),
+                          label: Text(t.showRecitation),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    PrayerDetailPage(prayer: prayer),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    if (journey.totalDays != null &&
+                        journey.timesPerDay != null)
+                      Column(
+                        children: [
+                          Text(t.dayProgress(
+                              journey.currentDay, journey.totalDays!)),
+                          Text(t.readProgress(
+                              journey.currentReadCount, journey.timesPerDay!)),
+                          Text(
+                              '${t.lastRead}: ${journey.lastReadDate.toString().split(' ')[0]}'),
+                          const SizedBox(height: 16),
+                          // Tesbih Counter
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove),
+                                onPressed: (journey.canReadToday() &&
+                                        !journey.isCompleted &&
+                                        !journey.hasCompletedTodaysReading())
+                                    ? () {
+                                        setState(() {
+                                          if (_tesbihCounters[journey.id]! >
+                                              0) {
+                                            _tesbihCounters[journey.id] =
+                                                _tesbihCounters[journey.id]! -
+                                                    1;
+                                          }
+                                        });
+                                      }
+                                    : null,
+                              ),
+                              GestureDetector(
+                                onTap: (journey.canReadToday() &&
+                                        !journey.isCompleted &&
+                                        !journey.hasCompletedTodaysReading())
+                                    ? () {
+                                        setState(() {
+                                          _tesbihCounters[journey.id] =
+                                              _tesbihCounters[journey.id]! + 1;
+                                        });
+                                      }
+                                    : null,
+                                child: Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: (journey.canReadToday() &&
+                                            !journey.isCompleted &&
+                                            !journey
+                                                .hasCompletedTodaysReading())
+                                        ? Colors.green.shade700
+                                        : Colors.grey,
+                                    border: Border.all(
+                                        color: (journey.canReadToday() &&
+                                                !journey.isCompleted &&
+                                                !journey
+                                                    .hasCompletedTodaysReading())
+                                            ? Colors.green.shade900
+                                            : Colors.grey.shade600,
+                                        width: 4),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '${_tesbihCounters[journey.id]}',
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.add),
-                              onPressed: () {
-                                setState(() {
-                                  _tesbihCounters[journey.id] = _tesbihCounters[journey.id]! + 1;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: _controllers[journey.id],
-                          decoration: const InputDecoration(labelText: 'Bugün Ne Kadar Okudun?'),
-                          keyboardType: TextInputType.number,
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: ElevatedButton(
+                              IconButton(
+                                icon: const Icon(Icons.add),
+                                onPressed: (journey.canReadToday() &&
+                                        !journey.isCompleted &&
+                                        !journey.hasCompletedTodaysReading())
+                                    ? () {
+                                        setState(() {
+                                          final remaining =
+                                              journey.timesPerDay! -
+                                                  journey.currentReadCount;
+                                          if (_tesbihCounters[journey.id]! <
+                                              remaining) {
+                                            _tesbihCounters[journey.id] =
+                                                _tesbihCounters[journey.id]! +
+                                                    1;
+                                          }
+                                        });
+                                      }
+                                    : null,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: (journey.canReadToday() &&
+                                          !journey.isCompleted &&
+                                          !journey.hasCompletedTodaysReading())
+                                      ? () {
+                                          final tesbih =
+                                              _tesbihCounters[journey.id] ?? 0;
+                                          if (tesbih > 0) {
+                                            _processConditionalRead(
+                                                journey, tesbih);
+                                            return;
+                                          }
+                                          final controller =
+                                              TextEditingController();
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) => AlertDialog(
+                                              title: Text(t.howMuchRead),
+                                              content: TextField(
+                                                controller: controller,
+                                                keyboardType:
+                                                    TextInputType.number,
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(context),
+                                                  child: Text(t.cancel),
+                                                ),
+                                                TextButton(
+                                                  onPressed: () {
+                                                    final value = int.tryParse(
+                                                            controller.text) ??
+                                                        0;
+                                                    Navigator.pop(context);
+                                                    if (value > 0) {
+                                                      _processConditionalRead(
+                                                          journey, value);
+                                                    } else {
+                                                      ScaffoldMessenger.of(
+                                                              context)
+                                                          .showSnackBar(
+                                                        SnackBar(
+                                                            content: Text(t
+                                                                .pleaseEnterValidNumber)),
+                                                      );
+                                                    }
+                                                  },
+                                                  child: Text(t.save),
+                                                ),
+                                              ],
+                                            ),
+                                          ).then((_) => controller.dispose());
+                                        }
+                                      : null,
+                                  child: Text(t.readToday),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              ElevatedButton(
+                                onPressed: (journey.canReadToday() &&
+                                        !journey.isCompleted &&
+                                        !journey.hasCompletedTodaysReading())
+                                    ? () {
+                                        final controller =
+                                            TextEditingController();
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) => AlertDialog(
+                                            title: Text(t.howManyDeduct),
+                                            content: TextField(
+                                              controller: controller,
+                                              keyboardType:
+                                                  TextInputType.number,
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.pop(context),
+                                                child: Text(t.cancel),
+                                              ),
+                                              TextButton(
+                                                onPressed: () {
+                                                  final deduct = int.tryParse(
+                                                          controller.text) ??
+                                                      0;
+                                                  setState(() {
+                                                    journey.totalReads =
+                                                        (journey.totalReads -
+                                                                deduct)
+                                                            .clamp(0,
+                                                                double.infinity)
+                                                            .toInt();
+                                                  });
+                                                  provider
+                                                      .updateJourney(journey);
+                                                  Navigator.pop(context);
+                                                },
+                                                child: Text(t.ok),
+                                              ),
+                                            ],
+                                          ),
+                                        ).then((_) => controller.dispose());
+                                      }
+                                    : null,
+                                child: Text(t.wrongEntry),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red),
+                              ),
+                            ],
+                          ),
+                        ],
+                      )
+                    else
+                      Column(
+                        children: [
+                          Text('${t.readDays}: ${journey.currentDay}'),
+                          Text('${t.todayRead}: ${journey.currentReadCount}'),
+                          Text('${t.totalRead}: ${journey.totalReads}'),
+                          Text(
+                              '${t.lastRead}: ${journey.lastReadDate.toString().split(' ')[0]}'),
+                          const SizedBox(height: 16),
+                          // Tesbih Counter
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.remove),
                                 onPressed: () {
-                                  final tesbih = _tesbihCounters[journey.id] ?? 0;
-                                  if (tesbih > 0) {
-                                    _processRead(journey, tesbih);
-                                    return;
-                                  }
+                                  setState(() {
+                                    if (_tesbihCounters[journey.id]! > 0) {
+                                      _tesbihCounters[journey.id] =
+                                          _tesbihCounters[journey.id]! - 1;
+                                    }
+                                  });
+                                },
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _tesbihCounters[journey.id] =
+                                        _tesbihCounters[journey.id]! + 1;
+                                  });
+                                },
+                                child: Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.amber.shade700,
+                                    border: Border.all(
+                                        color: Colors.amber.shade900, width: 4),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '${_tesbihCounters[journey.id]}',
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.add),
+                                onPressed: () {
+                                  setState(() {
+                                    _tesbihCounters[journey.id] =
+                                        _tesbihCounters[journey.id]! + 1;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          TextField(
+                            controller: _controllers[journey.id],
+                            decoration:
+                                InputDecoration(labelText: t.readTodayPrompt),
+                            keyboardType: TextInputType.number,
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    final tesbih =
+                                        _tesbihCounters[journey.id] ?? 0;
+                                    if (tesbih > 0) {
+                                      _processRead(journey, tesbih);
+                                      return;
+                                    }
+                                    final controller = TextEditingController();
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: Text(t.howMuchRead),
+                                        content: TextField(
+                                          controller: controller,
+                                          keyboardType: TextInputType.number,
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: Text(t.cancel),
+                                          ),
+                                          TextButton(
+                                            onPressed: () {
+                                              final value = int.tryParse(
+                                                      controller.text) ??
+                                                  0;
+                                              Navigator.pop(context);
+                                              if (value > 0) {
+                                                _processRead(journey, value);
+                                              } else {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                      content: Text(t
+                                                          .pleaseEnterValidNumber)),
+                                                );
+                                              }
+                                            },
+                                            child: Text(t.save),
+                                          ),
+                                        ],
+                                      ),
+                                    ).then((_) => controller.dispose());
+                                  },
+                                  child: Text(t.readToday),
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              ElevatedButton(
+                                onPressed: () {
                                   final controller = TextEditingController();
                                   showDialog(
                                     context: context,
                                     builder: (context) => AlertDialog(
-                                      title: const Text('Ne kadar okudun?'),
+                                      title: Text(t.howManyDeduct),
                                       content: TextField(
                                         controller: controller,
                                         keyboardType: TextInputType.number,
                                       ),
                                       actions: [
                                         TextButton(
-                                          onPressed: () => Navigator.pop(context),
-                                          child: const Text('İptal'),
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                          child: Text(t.cancel),
                                         ),
                                         TextButton(
                                           onPressed: () {
-                                            final value = int.tryParse(controller.text) ?? 0;
+                                            final deduct =
+                                                int.tryParse(controller.text) ??
+                                                    0;
+                                            setState(() {
+                                              journey.totalReads =
+                                                  (journey.totalReads - deduct)
+                                                      .clamp(0, double.infinity)
+                                                      .toInt();
+                                            });
+                                            provider.updateJourney(journey);
                                             Navigator.pop(context);
-                                            if (value > 0) {
-                                              _processRead(journey, value);
-                                            } else {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                const SnackBar(content: Text('Lütfen geçerli bir sayı girin.')),
-                                              );
-                                            }
                                           },
-                                          child: const Text('Kaydet'),
+                                          child: Text(t.ok),
                                         ),
                                       ],
                                     ),
                                   ).then((_) => controller.dispose());
                                 },
-                                child: const Text('Bugün Okudum'),
+                                child: Text(t.wrongEntry),
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red),
                               ),
-                            ),
-                            const SizedBox(width: 16),
-                            ElevatedButton(
-                              onPressed: () {
-                                final controller = TextEditingController();
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Kaç Eksilteceksin?'),
-                                    content: TextField(
-                                      controller: controller,
-                                      keyboardType: TextInputType.number,
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('İptal'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {
-                                          final deduct = int.tryParse(controller.text) ?? 0;
-                                          setState(() {
-                                            journey.totalReads = (journey.totalReads - deduct).clamp(0, double.infinity).toInt();
-                                          });
-                                          provider.updateJourney(journey);
-                                          Navigator.pop(context);
-                                        },
-                                        child: const Text('Tamam'),
-                                      ),
-                                    ],
-                                  ),
-                                ).then((_) => controller.dispose());
-                              },
-                              child: const Text('Yanlış Giriş'),
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                            ],
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
@@ -676,7 +790,8 @@ class _JourneysPageState extends State<JourneysPage> {
         ),
       ),
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 48.0), // Navigasyon barı üstüne çıkar
+        padding:
+            const EdgeInsets.only(bottom: 48.0), // Navigasyon barı üstüne çıkar
         child: FloatingActionButton(
           onPressed: () => _showAddJourneyDialog(context),
           child: const Icon(Icons.add),
@@ -686,11 +801,15 @@ class _JourneysPageState extends State<JourneysPage> {
         type: BottomNavigationBarType.fixed,
         currentIndex: 1,
         items: [
-          const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Ana Sayfa'),
-          const BottomNavigationBarItem(icon: Icon(Icons.route), label: 'Yolculuklarım'),
-          const BottomNavigationBarItem(icon: Icon(Icons.schedule), label: 'Namazlarım'),
-          const BottomNavigationBarItem(icon: Icon(Icons.explore), label: 'Kible'),
-          BottomNavigationBarItem(icon: _buildMosqueHeartIcon(), label: 'Destekle'),
+          BottomNavigationBarItem(icon: const Icon(Icons.home), label: t.home),
+          BottomNavigationBarItem(
+              icon: const Icon(Icons.route), label: t.myJourneys),
+          BottomNavigationBarItem(
+              icon: const Icon(Icons.schedule), label: t.myPrayerTimes),
+          BottomNavigationBarItem(
+              icon: const Icon(Icons.explore), label: t.qibla),
+          BottomNavigationBarItem(
+              icon: _buildMosqueHeartIcon(), label: t.support),
         ],
         onTap: (index) {
           if (index == 0) {

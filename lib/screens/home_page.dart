@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_strings.dart';
 import '../providers/app_provider.dart';
 import '../services/version_service.dart';
 import 'prayer_detail_page.dart';
@@ -75,21 +76,22 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showAdminPasswordDialog() {
+    final t = AppStrings.of(context);
     final controller = TextEditingController();
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Admin Girişi'),
+        title: Text(t.adminLogin),
         content: TextField(
           controller: controller,
           obscureText: true,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'Şifre'),
+          decoration: InputDecoration(labelText: t.password),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
+            child: Text(t.cancel),
           ),
           TextButton(
             onPressed: () {
@@ -101,11 +103,11 @@ class _HomePageState extends State<HomePage> {
                 );
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Yanlış şifre!')),
+                  SnackBar(content: Text(t.wrongPassword)),
                 );
               }
             },
-            child: const Text('Giriş'),
+            child: Text(t.login),
           ),
         ],
       ),
@@ -188,12 +190,18 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppStrings.of(context);
+    final languageCode = Localizations.localeOf(context).languageCode;
     final provider = Provider.of<AppProvider>(context);
     final journeys = provider.journeys.where((j) => !j.isCompleted).toList();
     final filteredPrayers = provider.prayers
         .where((p) =>
             p.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            p.content.toLowerCase().contains(_searchQuery.toLowerCase()))
+            p.content.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            p
+                .localizedDescription(languageCode)
+                .toLowerCase()
+                .contains(_searchQuery.toLowerCase()))
         .toList();
     final filteredJourneys = journeys
         .where((j) =>
@@ -212,24 +220,24 @@ class _HomePageState extends State<HomePage> {
               _showAdminPasswordDialog();
             }
           },
-          child: const Text('Dualar'),
+          child: Text(t.prayers),
         ),
         backgroundColor: Colors.green,
         actions: [
           TextButton.icon(
             onPressed: provider.increaseFontSize,
             icon: const Icon(Icons.add, color: Colors.white, size: 16),
-            label: const Text(
-              'Büyüt',
-              style: TextStyle(color: Colors.white, fontSize: 12),
+            label: Text(
+              t.increase,
+              style: const TextStyle(color: Colors.white, fontSize: 12),
             ),
           ),
           TextButton.icon(
             onPressed: provider.decreaseFontSize,
             icon: const Icon(Icons.remove, color: Colors.white, size: 16),
-            label: const Text(
-              'Küçült',
-              style: TextStyle(color: Colors.white, fontSize: 12),
+            label: Text(
+              t.decrease,
+              style: const TextStyle(color: Colors.white, fontSize: 12),
             ),
           ),
         ],
@@ -239,8 +247,8 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.all(8.0),
             child: TextField(
               onChanged: (value) => setState(() => _searchQuery = value),
-              decoration: const InputDecoration(
-                hintText: 'Ara...',
+              decoration: InputDecoration(
+                hintText: t.search,
                 prefixIcon: Icon(Icons.search),
                 filled: true,
                 fillColor: Colors.white,
@@ -266,16 +274,22 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Yolculuklarım',
-                      style:
-                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    Text(
+                      t.myJourneys,
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     ...filteredJourneys.map((journey) => ListTile(
                           title: Text(journey.prayerTitle),
                           subtitle: Text(
-                              'Gün ${journey.currentDay}/${journey.totalDays ?? '∞'} - Okuma ${journey.currentReadCount}/${journey.timesPerDay ?? '∞'}'),
+                            t.homeJourneySummary(
+                              journey.currentDay,
+                              journey.totalDays ?? '∞',
+                              journey.currentReadCount,
+                              journey.timesPerDay ?? '∞',
+                            ),
+                          ),
                           trailing: Text(
                               journey.lastReadDate.toString().split(' ')[0]),
                           onTap: () {
@@ -298,7 +312,8 @@ class _HomePageState extends State<HomePage> {
                     return _buildBannerTile(slot);
                   }
 
-                  final prayer = filteredPrayers[_prayerIndexFromListIndex(index)];
+                  final prayer =
+                      filteredPrayers[_prayerIndexFromListIndex(index)];
                   return Card(
                     margin:
                         const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -310,9 +325,11 @@ class _HomePageState extends State<HomePage> {
                             fontSize: provider.fontSize,
                             fontWeight: FontWeight.bold),
                       ),
-                      subtitle: prayer.description.isNotEmpty
+                      subtitle: prayer
+                              .localizedDescription(languageCode)
+                              .isNotEmpty
                           ? Text(
-                              prayer.description,
+                              prayer.localizedDescription(languageCode),
                               style: TextStyle(fontSize: provider.fontSize - 2),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -339,16 +356,15 @@ class _HomePageState extends State<HomePage> {
         type: BottomNavigationBarType.fixed,
         currentIndex: 0,
         items: [
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.home), label: 'Ana Sayfa'),
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.route), label: 'Yolculuklarım'),
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.schedule), label: 'Namazlarım'),
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.explore), label: 'Kible'),
+          BottomNavigationBarItem(icon: const Icon(Icons.home), label: t.home),
           BottomNavigationBarItem(
-              icon: _buildMosqueHeartIcon(), label: 'Destekle'),
+              icon: const Icon(Icons.route), label: t.myJourneys),
+          BottomNavigationBarItem(
+              icon: const Icon(Icons.schedule), label: t.myPrayerTimes),
+          BottomNavigationBarItem(
+              icon: const Icon(Icons.explore), label: t.qibla),
+          BottomNavigationBarItem(
+              icon: _buildMosqueHeartIcon(), label: t.support),
         ],
         onTap: (index) {
           if (index == 1) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../l10n/app_strings.dart';
 import '../providers/app_provider.dart';
 import '../services/notification_service.dart';
 import '../services/prayer_time_api_service.dart';
@@ -113,8 +114,8 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
         provider.updatePrayerTimes(prayerTimes);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Namaz vakitleri konumunuza göre güncellendi! 📍'),
+          SnackBar(
+            content: Text(AppStrings.of(context).timesUpdatedByLocation),
             backgroundColor: Colors.green,
           ),
         );
@@ -125,17 +126,17 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('Vakitler alınamadı. Konum izni verdiğinizden emin olun.'),
+          SnackBar(
+            content: Text(AppStrings.of(context).timesFetchFailed),
             backgroundColor: Colors.red,
           ),
         );
       }
     } catch (e) {
+      final t = AppStrings.of(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Hata: $e'),
+          content: Text(t.errorWithDetails(e)),
           backgroundColor: Colors.red,
         ),
       );
@@ -156,6 +157,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
 
   Future<void> _selectTime(
       TextEditingController controller, String label) async {
+    final t = AppStrings.of(context);
     TimeOfDay initialTime = TimeOfDay.now();
 
     // Mevcut değeri parse et
@@ -172,7 +174,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: initialTime,
-      helpText: '$label Vakti Seçin',
+      helpText: t.selectPrayerTime(label),
       builder: (context, child) {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
@@ -204,8 +206,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
 
     // Bildirimleri ayarla
     if (_ezanNotificationEnabled) {
-      final result =
-          await NotificationService().scheduleAllEzanNotifications(
+      final result = await NotificationService().scheduleAllEzanNotifications(
         fajrTime: fajrTimeController.text,
         dhuhrTime: dhuhrTimeController.text,
         asrTime: asrTimeController.text,
@@ -213,15 +214,16 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
         ishaTime: ishaTimeController.text,
       );
       if (showFeedback && mounted) {
+        final t = AppStrings.of(context);
         String message;
         Color bgColor;
         switch (result) {
           case 'success':
-            message = 'Ezan bildirimleri aktif edildi! 🕌';
+            message = t.ezanEnabled;
             bgColor = Colors.green;
             break;
           case 'no_permission':
-            message = 'Bildirim izni verilmedi. Lütfen ayarlardan bildirim iznini açın.';
+            message = t.permissionDenied;
             bgColor = Colors.red;
             // İzin yoksa switch'i kapat
             setState(() {
@@ -231,11 +233,11 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
             provider.updatePrayerTimes(prayerTimes);
             break;
           case 'no_times':
-            message = 'Namaz vakitleri boş. Lütfen önce vakitleri girin veya konumdan alın.';
+            message = t.noTimes;
             bgColor = Colors.orange;
             break;
           default: // schedule_failed
-            message = 'Bildirimler planlanırken bir hata oluştu. Lütfen tekrar deneyin.';
+            message = t.scheduleError;
             bgColor = Colors.red;
         }
         ScaffoldMessenger.of(context).showSnackBar(
@@ -246,7 +248,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
       await NotificationService().cancelAllEzanNotifications();
       if (showFeedback && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ezan bildirimleri kapatıldı')),
+          SnackBar(content: Text(AppStrings.of(context).ezanDisabled)),
         );
       }
     }
@@ -254,24 +256,25 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppStrings.of(context);
     final provider = Provider.of<AppProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Namazlarım'),
+        title: Text(t.myPrayerTimes),
         backgroundColor: Colors.green,
         actions: [
           TextButton.icon(
             onPressed: provider.increaseFontSize,
             icon: const Icon(Icons.add, color: Colors.white, size: 16),
-            label: const Text('Büyüt',
-                style: TextStyle(color: Colors.white, fontSize: 12)),
+            label: Text(t.increase,
+                style: const TextStyle(color: Colors.white, fontSize: 12)),
           ),
           TextButton.icon(
             onPressed: provider.decreaseFontSize,
             icon: const Icon(Icons.remove, color: Colors.white, size: 16),
-            label: const Text('Küçült',
-                style: TextStyle(color: Colors.white, fontSize: 12)),
+            label: Text(t.decrease,
+                style: const TextStyle(color: Colors.white, fontSize: 12)),
           ),
         ],
       ),
@@ -302,16 +305,16 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
                             const Icon(Icons.notifications_active,
                                 color: Colors.green),
                             const SizedBox(width: 8),
-                            const Text(
-                              'Ezan Vakitleri',
-                              style: TextStyle(
+                            Text(
+                              t.ezanTimes,
+                              style: const TextStyle(
                                   fontSize: 20, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
                         const SizedBox(height: 8),
                         _isLoadingPrayerTimes
-                            ? const Padding(
+                            ? Padding(
                                 padding: EdgeInsets.symmetric(vertical: 8),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -323,25 +326,24 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
                                           strokeWidth: 2),
                                     ),
                                     SizedBox(width: 8),
-                                    Text('Vakitler alınıyor...',
-                                        style: TextStyle(color: Colors.grey)),
+                                    Text(t.timesLoading,
+                                        style: const TextStyle(
+                                            color: Colors.grey)),
                                   ],
                                 ),
                               )
-                            : const Text(
-                                'Vakitler konumunuza göre otomatik güncellenir',
-                                style:
-                                    TextStyle(color: Colors.grey, fontSize: 12),
+                            : Text(
+                                t.timesAutoUpdated,
+                                style: const TextStyle(
+                                    color: Colors.grey, fontSize: 12),
                               ),
                         const SizedBox(height: 16),
 
                         // Bildirim açma/kapama switch
                         SwitchListTile(
-                          title: const Text('Ezan Bildirimi'),
+                          title: Text(t.ezanNotification),
                           subtitle: Text(
-                            _ezanNotificationEnabled
-                                ? 'Sesli bildirim açık 🔔'
-                                : 'Sesli bildirim kapalı',
+                            _ezanNotificationEnabled ? t.voiceOn : t.voiceOff,
                           ),
                           value: _ezanNotificationEnabled,
                           activeColor: Colors.green,
@@ -357,11 +359,15 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
                         const Divider(),
 
                         _buildEzanTimeField(
-                            'Sabah (İmsak)', fajrTimeController),
-                        _buildEzanTimeField('Öğle', dhuhrTimeController),
-                        _buildEzanTimeField('İkindi', asrTimeController),
-                        _buildEzanTimeField('Akşam', maghribTimeController),
-                        _buildEzanTimeField('Yatsı', ishaTimeController),
+                            t.prayerNameFajr(), fajrTimeController),
+                        _buildEzanTimeField(
+                            t.prayerNameDhuhr(), dhuhrTimeController),
+                        _buildEzanTimeField(
+                            t.prayerNameAsr(), asrTimeController),
+                        _buildEzanTimeField(
+                            t.prayerNameMaghrib(), maghribTimeController),
+                        _buildEzanTimeField(
+                            t.prayerNameIsha(), ishaTimeController),
 
                         const SizedBox(height: 16),
                         SizedBox(
@@ -373,9 +379,9 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
                             ),
                             onPressed: _saveEzanTimes,
                             icon: const Icon(Icons.save, color: Colors.white),
-                            label: const Text(
-                              'Ezan Vakitlerini Kaydet',
-                              style: TextStyle(color: Colors.white),
+                            label: Text(
+                              t.saveEzanTimes,
+                              style: const TextStyle(color: Colors.white),
                             ),
                           ),
                         ),
@@ -398,21 +404,25 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
                           children: [
                             const Icon(Icons.history, color: Colors.orange),
                             const SizedBox(width: 8),
-                            const Text(
-                              'Kaza Namazları',
-                              style: TextStyle(
+                            Text(
+                              t.qazaPrayers,
+                              style: const TextStyle(
                                   fontSize: 20, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
                         const SizedBox(height: 16),
-                        _buildPrayerTimeField('Sabah', sabahController),
+                        _buildPrayerTimeField(
+                            t.prayerNameFajr(), sabahController),
                         const SizedBox(height: 12),
-                        _buildPrayerTimeField('Öğle', ogleController),
+                        _buildPrayerTimeField(
+                            t.prayerNameDhuhr(), ogleController),
                         const SizedBox(height: 12),
-                        _buildPrayerTimeField('İkindi', ikindiController),
+                        _buildPrayerTimeField(
+                            t.prayerNameAsr(), ikindiController),
                         const SizedBox(height: 12),
-                        _buildPrayerTimeField('Akşam', aksamController),
+                        _buildPrayerTimeField(
+                            t.prayerNameMaghrib(), aksamController),
                         const SizedBox(height: 16),
                         SizedBox(
                           width: double.infinity,
@@ -435,15 +445,13 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
                               provider.updatePrayerTimes(prayerTimes);
 
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content:
-                                        Text('Kaza namazları kaydedildi!')),
+                                SnackBar(content: Text(t.qazaSaved)),
                               );
                             },
                             icon: const Icon(Icons.save, color: Colors.white),
-                            label: const Text(
-                              'Kaza Namazlarını Kaydet',
-                              style: TextStyle(color: Colors.white),
+                            label: Text(
+                              t.saveQazaPrayers,
+                              style: const TextStyle(color: Colors.white),
                             ),
                           ),
                         ),
@@ -460,16 +468,15 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
         type: BottomNavigationBarType.fixed,
         currentIndex: 2,
         items: [
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.home), label: 'Ana Sayfa'),
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.route), label: 'Yolculuklarım'),
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.schedule), label: 'Namazlarım'),
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.explore), label: 'Kible'),
+          BottomNavigationBarItem(icon: const Icon(Icons.home), label: t.home),
           BottomNavigationBarItem(
-              icon: _buildMosqueHeartIcon(), label: 'Destekle'),
+              icon: const Icon(Icons.route), label: t.myJourneys),
+          BottomNavigationBarItem(
+              icon: const Icon(Icons.schedule), label: t.myPrayerTimes),
+          BottomNavigationBarItem(
+              icon: const Icon(Icons.explore), label: t.qibla),
+          BottomNavigationBarItem(
+              icon: _buildMosqueHeartIcon(), label: t.support),
         ],
         onTap: (index) {
           if (index == 0) {
@@ -536,7 +543,9 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  controller.text.isEmpty ? 'Seç' : controller.text,
+                  controller.text.isEmpty
+                      ? AppStrings.of(context).select
+                      : controller.text,
                   style: TextStyle(
                     color: controller.text.isEmpty ? Colors.grey : Colors.black,
                   ),

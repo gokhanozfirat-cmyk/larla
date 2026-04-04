@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../l10n/app_strings.dart';
 import '../providers/app_provider.dart';
 import '../models/prayer.dart';
 import '../models/journey.dart';
@@ -13,6 +14,8 @@ class PrayerDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppStrings.of(context);
+    final languageCode = Localizations.localeOf(context).languageCode;
     final provider = Provider.of<AppProvider>(context);
 
     return Scaffold(
@@ -43,19 +46,20 @@ class PrayerDetailPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (prayer.description.isNotEmpty)
+              if (prayer.localizedDescription(languageCode).isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Buyrulmuştur:',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      Text(
+                        t.saidItWas,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        prayer.description,
+                        prayer.localizedDescription(languageCode),
                         style: TextStyle(fontSize: provider.fontSize),
                       ),
                       const Divider(),
@@ -86,7 +90,8 @@ class PrayerDetailPage extends StatelessWidget {
                     if (prayer.hasCondition)
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 16),
                           textStyle: const TextStyle(fontSize: 18),
                         ),
                         onPressed: () {
@@ -99,19 +104,21 @@ class PrayerDetailPage extends StatelessWidget {
                           );
                           provider.startJourney(journey);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Yolculuk başlatıldı!')),
+                            SnackBar(content: Text(t.journeyStarted)),
                           );
                           Navigator.pushReplacement(
                             context,
-                            MaterialPageRoute(builder: (context) => const JourneysPage()),
+                            MaterialPageRoute(
+                                builder: (context) => const JourneysPage()),
                           );
                         },
-                        child: const Text('Yolculuğumu Başlat'),
+                        child: Text(t.startJourney),
                       )
                     else
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 16),
                           textStyle: const TextStyle(fontSize: 18),
                         ),
                         onPressed: () {
@@ -123,14 +130,15 @@ class PrayerDetailPage extends StatelessWidget {
                           );
                           provider.startJourney(journey);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Yolculuk başlatıldı!')),
+                            SnackBar(content: Text(t.journeyStarted)),
                           );
                           Navigator.pushReplacement(
                             context,
-                            MaterialPageRoute(builder: (context) => const JourneysPage()),
+                            MaterialPageRoute(
+                                builder: (context) => const JourneysPage()),
                           );
                         },
-                        child: const Text('Yolculuğumu Başlat'),
+                        child: Text(t.startJourney),
                       ),
                   ],
                 ),

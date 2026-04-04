@@ -3,11 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:convert';
+import '../l10n/app_strings.dart';
 import '../providers/app_provider.dart';
 import '../models/prayer.dart';
-import 'home_page.dart';
-import 'journeys_page.dart';
-import 'prayer_times_page.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -38,11 +36,12 @@ class _AdminPageState extends State<AdminPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppStrings.of(context);
     final provider = Provider.of<AppProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Panel'),
+        title: Text(t.adminPanel),
         backgroundColor: Colors.green,
         actions: [
           IconButton(
@@ -69,22 +68,22 @@ class _AdminPageState extends State<AdminPage> {
             children: [
               TextField(
                 controller: _titleController,
-                decoration: const InputDecoration(labelText: 'Dua Başlığı'),
+                decoration: InputDecoration(labelText: t.prayerTitle),
               ),
               TextField(
                 controller: _descriptionController,
-                decoration: const InputDecoration(labelText: 'Tanım (İsteğe Bağlı)'),
+                decoration: InputDecoration(labelText: t.descriptionOptional),
                 maxLines: 2,
               ),
               TextField(
                 controller: _arabicContentController,
-                decoration: const InputDecoration(labelText: 'Arapça Metin (İsteğe Bağlı)'),
+                decoration: InputDecoration(labelText: t.arabicTextOptional),
                 maxLines: 3,
                 style: GoogleFonts.amiri(),
               ),
               TextField(
                 controller: _contentController,
-                decoration: const InputDecoration(labelText: 'Dua İçeriği'),
+                decoration: InputDecoration(labelText: t.prayerContent),
                 maxLines: 5,
               ),
               Row(
@@ -97,18 +96,18 @@ class _AdminPageState extends State<AdminPage> {
                       });
                     },
                   ),
-                  const Text('Koşul Var'),
+                  Text(t.hasCondition),
                 ],
               ),
               if (_hasCondition) ...[
                 TextField(
                   controller: _daysController,
-                  decoration: const InputDecoration(labelText: 'Gün Sayısı'),
+                  decoration: InputDecoration(labelText: t.dayCount),
                   keyboardType: TextInputType.number,
                 ),
                 TextField(
                   controller: _timesController,
-                  decoration: const InputDecoration(labelText: 'Günlük Okuma Sayısı'),
+                  decoration: InputDecoration(labelText: t.dailyReadCount),
                   keyboardType: TextInputType.number,
                 ),
               ],
@@ -117,13 +116,13 @@ class _AdminPageState extends State<AdminPage> {
                 onPressed: () {
                   if (_titleController.text.trim().isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Dua başlığı boş olamaz.')),
+                      SnackBar(content: Text(t.prayerTitleEmpty)),
                     );
                     return;
                   }
                   if (_contentController.text.trim().isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Dua içeriği boş olamaz.')),
+                      SnackBar(content: Text(t.prayerContentEmpty)),
                     );
                     return;
                   }
@@ -134,8 +133,12 @@ class _AdminPageState extends State<AdminPage> {
                     arabicContent: _arabicContentController.text,
                     content: _contentController.text,
                     hasCondition: _hasCondition,
-                    days: _hasCondition ? int.tryParse(_daysController.text) : null,
-                    timesPerDay: _hasCondition ? int.tryParse(_timesController.text) : null,
+                    days: _hasCondition
+                        ? int.tryParse(_daysController.text)
+                        : null,
+                    timesPerDay: _hasCondition
+                        ? int.tryParse(_timesController.text)
+                        : null,
                   );
                   provider.addPrayer(prayer);
                   _titleController.clear();
@@ -148,23 +151,25 @@ class _AdminPageState extends State<AdminPage> {
                     _hasCondition = false;
                   });
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Dua eklendi!')),
+                    SnackBar(content: Text(t.prayerAdded)),
                   );
                 },
-                child: const Text('Dua Ekle'),
+                child: Text(t.addPrayer),
               ),
               const SizedBox(height: 8),
               ElevatedButton.icon(
                 onPressed: () {
-                  final prayersJson = provider.prayers.map((p) => p.toJson()).toList();
-                  final jsonString = const JsonEncoder.withIndent('  ').convert(prayersJson);
+                  final prayersJson =
+                      provider.prayers.map((p) => p.toJson()).toList();
+                  final jsonString =
+                      const JsonEncoder.withIndent('  ').convert(prayersJson);
                   Clipboard.setData(ClipboardData(text: jsonString));
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('JSON panoya kopyalandı! assets/prayers.json dosyasına yapıştırın.')),
+                    SnackBar(content: Text(t.jsonCopied)),
                   );
                 },
                 icon: const Icon(Icons.copy),
-                label: const Text('Duaları JSON Olarak Kopyala'),
+                label: Text(t.copyPrayersJson),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
               ),
               const SizedBox(height: 16),
@@ -175,7 +180,8 @@ class _AdminPageState extends State<AdminPage> {
                     final prayer = provider.prayers[index];
                     return ListTile(
                       title: Text(prayer.title),
-                      subtitle: Text(prayer.hasCondition ? 'Koşullu' : 'Normal'),
+                      subtitle:
+                          Text(prayer.hasCondition ? t.conditional : t.normal),
                       trailing: IconButton(
                         icon: const Icon(Icons.delete, color: Colors.red),
                         onPressed: () {

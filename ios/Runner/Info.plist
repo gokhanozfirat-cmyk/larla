@@ -4,6 +4,17 @@
 	<dict>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
+		<key>CFBundleLocalizations</key>
+		<array>
+			<string>tr</string>
+			<string>en</string>
+			<string>ar</string>
+			<string>id</string>
+			<string>ur</string>
+			<string>bn</string>
+			<string>fr</string>
+			<string>fa</string>
+		</array>
 		<key>CFBundleDisplayName</key>
 		<string>Dualarla</string>
 		<key>CFBundleExecutable</key>

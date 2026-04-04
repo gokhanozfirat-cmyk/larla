@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_compass/flutter_compass.dart';
+import '../l10n/app_strings.dart';
 import '../services/prayer_time_api_service.dart';
 import 'home_page.dart';
 import 'journeys_page.dart';
@@ -54,7 +55,7 @@ class _QiblaPageState extends State<QiblaPage> {
       onError: (e) {
         if (!mounted) return;
         setState(() {
-          _error = 'Pusula sensörü hatası: $e';
+          _error = AppStrings.of(context).compassError(e);
         });
       },
     );
@@ -70,8 +71,7 @@ class _QiblaPageState extends State<QiblaPage> {
       final position = await PrayerTimeApiService.getCurrentLocation();
       if (position == null) {
         setState(() {
-          _error =
-              'Konum alinamadi. Konum izni verdiginizden emin olun.';
+          _error = AppStrings.of(context).locationUnavailable;
           _loading = false;
         });
         return;
@@ -86,7 +86,7 @@ class _QiblaPageState extends State<QiblaPage> {
       });
     } catch (e) {
       setState(() {
-        _error = 'Hata: $e';
+        _error = AppStrings.of(context).errorWithDetails(e);
         _loading = false;
       });
     }
@@ -100,8 +100,7 @@ class _QiblaPageState extends State<QiblaPage> {
     final dLon = _degToRad(kaabaLon - lon);
 
     final y = sin(dLon) * cos(lat2);
-    final x =
-        cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon);
+    final x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dLon);
     final brng = atan2(y, x);
     return (_radToDeg(brng) + 360) % 360;
   }
@@ -110,15 +109,16 @@ class _QiblaPageState extends State<QiblaPage> {
   double _radToDeg(double rad) => rad * 180.0 / pi;
 
   String _cardinalDirection(double bearing) {
-    const directions = [
-      'Kuzey',
-      'Kuzeydogu',
-      'Dogu',
-      'Guneydogu',
-      'Guney',
-      'Guneybati',
-      'Bati',
-      'Kuzeybati',
+    final t = AppStrings.of(context);
+    final directions = [
+      t.directionName(0),
+      t.directionName(1),
+      t.directionName(2),
+      t.directionName(3),
+      t.directionName(4),
+      t.directionName(5),
+      t.directionName(6),
+      t.directionName(7),
     ];
     final index = ((bearing + 22.5) / 45).floor() % 8;
     return directions[index];
@@ -126,15 +126,16 @@ class _QiblaPageState extends State<QiblaPage> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppStrings.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kıble'),
+        title: Text(t.qibla),
         backgroundColor: Colors.green,
         actions: [
           IconButton(
             onPressed: _loadQibla,
             icon: const Icon(Icons.refresh),
-            tooltip: 'Yenile',
+            tooltip: t.refresh,
           ),
         ],
       ),
@@ -156,7 +157,7 @@ class _QiblaPageState extends State<QiblaPage> {
                       ElevatedButton.icon(
                         onPressed: _loadQibla,
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Tekrar dene'),
+                        label: Text(t.retry),
                       ),
                     ],
                   )
@@ -169,7 +170,7 @@ class _QiblaPageState extends State<QiblaPage> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Kıble yonu: ${(_bearing ?? 0).toStringAsFixed(0)}°',
+                        t.qiblaDirection((_bearing ?? 0).toStringAsFixed(0)),
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -177,23 +178,25 @@ class _QiblaPageState extends State<QiblaPage> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Yaklasik yon: ${_cardinalDirection(_bearing ?? 0)}',
+                        t.approxDirection(_cardinalDirection(_bearing ?? 0)),
                         style: const TextStyle(color: Colors.grey),
                       ),
                       const SizedBox(height: 12),
                       if (_lat != null && _lon != null)
                         Text(
-                          'Konum: ${_lat!.toStringAsFixed(5)}, ${_lon!.toStringAsFixed(5)}',
+                          t.location(_lat!.toStringAsFixed(5),
+                              _lon!.toStringAsFixed(5)),
                           style: const TextStyle(
                             fontSize: 12,
                             color: Colors.grey,
                           ),
                         ),
                       const SizedBox(height: 12),
-                      const Text(
-                        'Not: Ok, cihaz yönüne göre canlı döner.',
+                      Text(
+                        t.qiblaNote,
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -202,16 +205,15 @@ class _QiblaPageState extends State<QiblaPage> {
         type: BottomNavigationBarType.fixed,
         currentIndex: 3,
         items: [
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.home), label: 'Ana Sayfa'),
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.route), label: 'Yolculuklarim'),
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.schedule), label: 'Namazlarim'),
-          const BottomNavigationBarItem(
-              icon: Icon(Icons.explore), label: 'Kıble'),
+          BottomNavigationBarItem(icon: const Icon(Icons.home), label: t.home),
           BottomNavigationBarItem(
-              icon: _buildMosqueHeartIcon(), label: 'Destekle'),
+              icon: const Icon(Icons.route), label: t.myJourneys),
+          BottomNavigationBarItem(
+              icon: const Icon(Icons.schedule), label: t.myPrayerTimes),
+          BottomNavigationBarItem(
+              icon: const Icon(Icons.explore), label: t.qibla),
+          BottomNavigationBarItem(
+              icon: _buildMosqueHeartIcon(), label: t.support),
         ],
         onTap: (index) {
           if (index == 0) {
@@ -262,9 +264,9 @@ class _QiblaPageState extends State<QiblaPage> {
             top: 12,
             child: Transform.rotate(
               angle: relative,
-              child: const Text(
-                'Kıble',
-                style: TextStyle(
+              child: Text(
+                AppStrings.of(context).qibla,
+                style: const TextStyle(
                   color: Colors.green,
                   fontWeight: FontWeight.bold,
                 ),
