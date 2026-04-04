@@ -204,7 +204,7 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
 
     // Bildirimleri ayarla
     if (_ezanNotificationEnabled) {
-      final scheduled =
+      final result =
           await NotificationService().scheduleAllEzanNotifications(
         fajrTime: fajrTimeController.text,
         dhuhrTime: dhuhrTimeController.text,
@@ -213,14 +213,33 @@ class _PrayerTimesPageState extends State<PrayerTimesPage> {
         ishaTime: ishaTimeController.text,
       );
       if (showFeedback && mounted) {
+        String message;
+        Color bgColor;
+        switch (result) {
+          case 'success':
+            message = 'Ezan bildirimleri aktif edildi! 🕌';
+            bgColor = Colors.green;
+            break;
+          case 'no_permission':
+            message = 'Bildirim izni verilmedi. Lütfen ayarlardan bildirim iznini açın.';
+            bgColor = Colors.red;
+            // İzin yoksa switch'i kapat
+            setState(() {
+              _ezanNotificationEnabled = false;
+            });
+            prayerTimes.ezanNotificationEnabled = false;
+            provider.updatePrayerTimes(prayerTimes);
+            break;
+          case 'no_times':
+            message = 'Namaz vakitleri boş. Lütfen önce vakitleri girin veya konumdan alın.';
+            bgColor = Colors.orange;
+            break;
+          default: // schedule_failed
+            message = 'Bildirimler planlanırken bir hata oluştu. Lütfen tekrar deneyin.';
+            bgColor = Colors.red;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              scheduled
-                  ? 'Ezan bildirimleri aktif edildi! 🕌'
-                  : 'Bildirim planlanamadı. Vakitleri ve bildirim izinlerini kontrol edin.',
-            ),
-          ),
+          SnackBar(content: Text(message), backgroundColor: bgColor),
         );
       }
     } else {

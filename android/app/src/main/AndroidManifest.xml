@@ -9,6 +9,9 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Android 13+ bildirim izni -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Zamanlanmış bildirimler için (Android 12+) -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <!-- Zamanlanmış bildirimlerin reboot sonrası yeniden kurulabilmesi için -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     

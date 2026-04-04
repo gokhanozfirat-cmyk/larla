@@ -47,25 +47,6 @@ class NotificationService {
         onDidReceiveNotificationResponse: onDidReceiveNotificationResponse,
       );
 
-      // Request permissions for Android 13+
-      try {
-        await flutterLocalNotificationsPlugin
-            .resolvePlatformSpecificImplementation<
-                AndroidFlutterLocalNotificationsPlugin>()
-            ?.requestNotificationsPermission();
-      } catch (e) {
-        // Android bildirim izni isteği başarısız
-      }
-
-      // Request permissions for iOS
-      await flutterLocalNotificationsPlugin
-          .resolvePlatformSpecificImplementation<
-              IOSFlutterLocalNotificationsPlugin>()
-          ?.requestPermissions(
-            alert: true,
-            badge: true,
-            sound: true,
-          );
       _initialized = true;
     } catch (e) {
       rethrow;
@@ -106,15 +87,45 @@ class NotificationService {
     return scheduledDate;
   }
 
-  Future<bool> _isNotificationPermissionGranted() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      return true;
+  /// Bildirim iznini kontrol eder. İzin yoksa ister.
+  /// Döndürülen değer: true = izin var, false = izin reddedildi
+  Future<bool> requestAndCheckPermission() async {
+    await _ensureInitialized();
+
+    if (kIsWeb) return true;
+
+    // Android izin kontrolü ve isteği
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final androidPlugin = flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+      if (androidPlugin == null) return false;
+
+      // Önce mevcut durumu kontrol et
+      final alreadyEnabled = await androidPlugin.areNotificationsEnabled();
+      if (alreadyEnabled == true) return true;
+
+      // İzin yoksa iste
+      final granted = await androidPlugin.requestNotificationsPermission();
+      return granted ?? false;
     }
-    final enabled = await flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.areNotificationsEnabled();
-    return enabled ?? false;
+
+    // iOS izin kontrolü ve isteği
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      final iosPlugin = flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin>();
+      if (iosPlugin == null) return true;
+
+      final granted = await iosPlugin.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      return granted ?? false;
+    }
+
+    return true;
   }
 
   static void onDidReceiveNotificationResponse(
@@ -197,15 +208,11 @@ class NotificationService {
             priority: Priority.high,
             playSound: true,
             enableVibration: true,
-            // Özel ezan sesi eklemek için:
-            // sound: RawResourceAndroidNotificationSound('ezan'),
           ),
           iOS: DarwinNotificationDetails(
             presentAlert: true,
             presentBadge: true,
             presentSound: true,
-            // Özel ezan sesi eklemek için:
-            // sound: 'ezan.aiff',
           ),
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -215,22 +222,31 @@ class NotificationService {
       );
       return true;
     } catch (e) {
+      debugPrint('[EZAN_NOTIFY] scheduleEzanNotification HATA: $e');
       return false;
     }
   }
 
   // Tüm ezan bildirimlerini planla
-  Future<bool> scheduleAllEzanNotifications({
+  // Döndürülen değer: 'success', 'no_permission', 'no_times', 'schedule_failed'
+  Future<String> scheduleAllEzanNotifications({
     String? fajrTime,
     String? dhuhrTime,
     String? asrTime,
     String? maghribTime,
     String? ishaTime,
   }) async {
-    // Önce tüm ezan bildirimlerini iptal et
     await _ensureInitialized();
-    final hasPermission = await _isNotificationPermissionGranted();
-    if (!hasPermission) return false;
+
+    // İzni kontrol et ve gerekiyorsa iste
+    final hasPermission = await requestAndCheckPermission();
+    if (!hasPermission) return 'no_permission';
+
+    // En az bir vakit dolu mu kontrol et
+    final times = [fajrTime, dhuhrTime, asrTime, maghribTime, ishaTime];
+    final hasAnyTime = times.any((t) => t != null && t.isNotEmpty);
+    if (!hasAnyTime) return 'no_times';
+
     await cancelAllEzanNotifications();
     var scheduledCount = 0;
 
@@ -274,7 +290,8 @@ class NotificationService {
       );
       if (ok) scheduledCount++;
     }
-    return scheduledCount > 0;
+
+    return scheduledCount > 0 ? 'success' : 'schedule_failed';
   }
 
   // Tüm ezan bildirimlerini iptal et
