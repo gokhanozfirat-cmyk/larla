@@ -8,6 +8,7 @@ import '../models/journey.dart';
 import '../models/prayer_times.dart';
 import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
+import '../services/prayer_time_api_service.dart';
 
 class AppProvider with ChangeNotifier {
   double _fontSize = 18.0;
@@ -127,6 +128,54 @@ class AppProvider with ChangeNotifier {
     _prayerTimes = prayerTimes;
     notifyListeners();
     _savePrayerTimes();
+
+    // Bildirimler açıksa ve stok varsa yeniden planla
+    if (_prayerTimes.ezanNotificationEnabled &&
+        _prayerTimes.multiDayTimes.isNotEmpty) {
+      NotificationService().scheduleMultiDayEzanNotifications(
+        multiDayTimes: _prayerTimes.multiDayTimes,
+      );
+    }
+  }
+
+  /// 15 günlük namaz vakitlerini API'den çek ve stokla.
+  /// İnternet varsa çalışır, yoksa sessizce başarısız olur.
+  Future<bool> refreshPrayerTimeStock() async {
+    try {
+      final multiDay = await PrayerTimeApiService
+          .fetchMultiDayPrayerTimesForCurrentLocation(days: 15);
+
+      if (multiDay == null || multiDay.isEmpty) return false;
+
+      _prayerTimes.multiDayTimes = multiDay;
+      _prayerTimes.lastStockUpdate = DateTime.now().toIso8601String();
+
+      // Bugünün vakitlerini stoktan güncelle
+      _prayerTimes.applyTodayFromStock();
+
+      _savePrayerTimes();
+      notifyListeners();
+
+      // Bildirimleri 15 günlük stokla yeniden planla
+      if (_prayerTimes.ezanNotificationEnabled) {
+        await NotificationService().scheduleMultiDayEzanNotifications(
+          multiDayTimes: _prayerTimes.multiDayTimes,
+        );
+      }
+
+      debugPrint('[STOCK] 15 günlük vakit stoku güncellendi: ${multiDay.length} gün');
+      return true;
+    } catch (e) {
+      debugPrint('[STOCK] Stok güncelleme hatası: $e');
+      return false;
+    }
+  }
+
+  /// Arka planda stok yenile (UI'ı bloklamaz)
+  void _refreshPrayerTimeStockInBackground() {
+    Future.delayed(const Duration(seconds: 5), () async {
+      await refreshPrayerTimeStock();
+    });
   }
 
   Future<void> _loadData() async {
@@ -169,14 +218,31 @@ class AppProvider with ChangeNotifier {
     }
 
     if (_prayerTimes.ezanNotificationEnabled) {
+      // Bugünün vakitlerini stoktan uygula
+      _prayerTimes.applyTodayFromStock();
+      _savePrayerTimes();
+
       Future(() async {
-        await NotificationService().scheduleAllEzanNotifications(
-          fajrTime: _prayerTimes.fajrTime,
-          dhuhrTime: _prayerTimes.dhuhrTime,
-          asrTime: _prayerTimes.asrTime,
-          maghribTime: _prayerTimes.maghribTime,
-          ishaTime: _prayerTimes.ishaTime,
-        );
+        // 15 günlük stok varsa onunla planla
+        if (_prayerTimes.multiDayTimes.isNotEmpty) {
+          await NotificationService().scheduleMultiDayEzanNotifications(
+            multiDayTimes: _prayerTimes.multiDayTimes,
+          );
+        } else {
+          // Stok yoksa bugünkü vakitlerle planla (fallback)
+          await NotificationService().scheduleAllEzanNotifications(
+            fajrTime: _prayerTimes.fajrTime,
+            dhuhrTime: _prayerTimes.dhuhrTime,
+            asrTime: _prayerTimes.asrTime,
+            maghribTime: _prayerTimes.maghribTime,
+            ishaTime: _prayerTimes.ishaTime,
+          );
+        }
+
+        // Stok azaldıysa arka planda yenile
+        if (_prayerTimes.needsStockRefresh) {
+          _refreshPrayerTimeStockInBackground();
+        }
       });
     }
 

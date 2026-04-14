@@ -17,12 +17,23 @@ class NotificationService {
     return _instance;
   }
 
-  // Ezan bildirim kanalı ID'leri
-  static const int _fajrNotificationId = 1001;
-  static const int _dhuhrNotificationId = 1002;
-  static const int _asrNotificationId = 1003;
-  static const int _maghribNotificationId = 1004;
-  static const int _ishaNotificationId = 1005;
+  // Ezan bildirim ID aralıkları:
+  // Gün 0 (bugün): 1001-1005
+  // Gün 1 (yarın): 1011-1015
+  // Gün N: 10N1-10N5 (N=0..14)
+  static const int _baseId = 1000;
+
+  // Vakit indeksleri
+  static const int _fajrIndex = 1;
+  static const int _dhuhrIndex = 2;
+  static const int _asrIndex = 3;
+  static const int _maghribIndex = 4;
+  static const int _ishaIndex = 5;
+
+  /// Gün ve vakit indeksinden bildirim ID'si hesapla
+  static int _notificationId(int dayOffset, int prayerIndex) {
+    return _baseId + (dayOffset * 10) + prayerIndex;
+  }
 
   Future<void> initialize() async {
     try {
@@ -75,26 +86,10 @@ class NotificationService {
     if (normalized.isEmpty) return '';
 
     const digitMap = <String, String>{
-      '٠': '0',
-      '١': '1',
-      '٢': '2',
-      '٣': '3',
-      '٤': '4',
-      '٥': '5',
-      '٦': '6',
-      '٧': '7',
-      '٨': '8',
-      '٩': '9',
-      '۰': '0',
-      '۱': '1',
-      '۲': '2',
-      '۳': '3',
-      '۴': '4',
-      '۵': '5',
-      '۶': '6',
-      '۷': '7',
-      '۸': '8',
-      '۹': '9',
+      '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+      '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9',
+      '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4',
+      '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
     };
     digitMap.forEach((from, to) {
       normalized = normalized.replaceAll(from, to);
@@ -120,58 +115,28 @@ class NotificationService {
     return _normalizeTimeText(time);
   }
 
-  DateTime? _parseTimeToDate(String time) {
-    final sanitized = _normalizeTimeText(time);
-    if (sanitized.isEmpty) return null;
-    final parts = sanitized.split(':');
-    if (parts.length != 2) return null;
-
-    final hour = int.tryParse(parts[0]);
-    final minute = int.tryParse(parts[1]);
-    if (hour == null || minute == null) return null;
-
-    final now = DateTime.now();
-    var scheduledDate = DateTime(now.year, now.month, now.day, hour, minute);
-    if (!scheduledDate.isAfter(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
-    return scheduledDate;
-  }
-
-  /// Bildirim iznini kontrol eder. İzin yoksa ister.
-  /// Döndürülen değer: true = izin var, false = izin reddedildi
   Future<bool> requestAndCheckPermission() async {
     await _ensureInitialized();
-
     if (kIsWeb) return true;
 
-    // Android izin kontrolü ve isteği
     if (defaultTargetPlatform == TargetPlatform.android) {
       final androidPlugin =
           flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>();
       if (androidPlugin == null) return false;
-
-      // Önce mevcut durumu kontrol et
       final alreadyEnabled = await androidPlugin.areNotificationsEnabled();
       if (alreadyEnabled == true) return true;
-
-      // İzin yoksa iste
       final granted = await androidPlugin.requestNotificationsPermission();
       return granted ?? false;
     }
 
-    // iOS izin kontrolü ve isteği
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       final iosPlugin =
           flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
               IOSFlutterLocalNotificationsPlugin>();
       if (iosPlugin == null) return true;
-
       final granted = await iosPlugin.requestPermissions(
-        alert: true,
-        badge: true,
-        sound: true,
+        alert: true, badge: true, sound: true,
       );
       return granted ?? false;
     }
@@ -182,6 +147,188 @@ class NotificationService {
   static void onDidReceiveNotificationResponse(
       NotificationResponse notificationResponse) {}
 
+  /// 15 günlük vakitleri kullanarak TÜM bildirimleri exact tarih/saatle planla.
+  /// matchDateTimeComponents KULLANMAZ — her gün ayrı bildirim.
+  Future<String> scheduleMultiDayEzanNotifications({
+    required Map<String, Map<String, String>> multiDayTimes,
+  }) async {
+    final t = AppStrings.fromPlatform();
+    await _ensureInitialized();
+
+    final hasPermission = await requestAndCheckPermission();
+    if (!hasPermission) return 'no_permission';
+
+    if (multiDayTimes.isEmpty) return 'no_times';
+
+    // Önce tüm eski bildirimleri iptal et
+    await cancelAllEzanNotifications();
+
+    var scheduledCount = 0;
+    final now = DateTime.now();
+
+    // Tarihleri sırala
+    final sortedDates = multiDayTimes.keys.toList()..sort();
+
+    for (var dayOffset = 0; dayOffset < sortedDates.length; dayOffset++) {
+      final dateKey = sortedDates[dayOffset];
+
+      // Tarihi parse et
+      DateTime targetDate;
+      try {
+        targetDate = DateTime.parse(dateKey);
+      } catch (_) {
+        continue;
+      }
+
+      // Geçmiş günleri atla
+      if (targetDate.isBefore(DateTime(now.year, now.month, now.day))) {
+        continue;
+      }
+
+      final dayTimes = multiDayTimes[dateKey]!;
+
+      // Her vakit için ayrı exact bildirim planla
+      final prayerEntries = [
+        (_fajrIndex, 'fajr', t.prayerNameFajr()),
+        (_dhuhrIndex, 'dhuhr', t.prayerNameDhuhr()),
+        (_asrIndex, 'asr', t.prayerNameAsr()),
+        (_maghribIndex, 'maghrib', t.prayerNameMaghrib()),
+        (_ishaIndex, 'isha', t.prayerNameIsha()),
+      ];
+
+      for (final entry in prayerEntries) {
+        final prayerIndex = entry.$1;
+        final timeKey = entry.$2;
+        final prayerName = entry.$3;
+        final timeStr = _normalizeTimeText(dayTimes[timeKey] ?? '');
+
+        if (timeStr.isEmpty) continue;
+
+        final parts = timeStr.split(':');
+        final hour = int.tryParse(parts[0]);
+        final minute = int.tryParse(parts[1]);
+        if (hour == null || minute == null) continue;
+
+        final scheduledDateTime = DateTime(
+          targetDate.year, targetDate.month, targetDate.day,
+          hour, minute,
+        );
+
+        // Geçmiş saatleri atla
+        if (scheduledDateTime.isBefore(now)) continue;
+
+        final tzDateTime = tz.TZDateTime.from(scheduledDateTime, tz.local);
+        final notifId = _notificationId(dayOffset, prayerIndex);
+
+        try {
+          await flutterLocalNotificationsPlugin.zonedSchedule(
+            notifId,
+            t.prayerTimeTitle(prayerName),
+            t.prayerTimeTitle(prayerName),
+            tzDateTime,
+            NotificationDetails(
+              android: AndroidNotificationDetails(
+                'ezan_channel',
+                t.ezanChannelName,
+                channelDescription: t.ezanChannelDescription,
+                importance: Importance.max,
+                priority: Priority.high,
+                playSound: true,
+                enableVibration: true,
+              ),
+              iOS: const DarwinNotificationDetails(
+                presentAlert: true,
+                presentBadge: true,
+                presentSound: true,
+              ),
+            ),
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            uiLocalNotificationDateInterpretation:
+                UILocalNotificationDateInterpretation.absoluteTime,
+          );
+          scheduledCount++;
+        } catch (e) {
+          // exactAllowWhileIdle desteklenmiyorsa fallback
+          try {
+            await flutterLocalNotificationsPlugin.zonedSchedule(
+              notifId,
+              t.prayerTimeTitle(prayerName),
+              t.prayerTimeTitle(prayerName),
+              tzDateTime,
+              NotificationDetails(
+                android: AndroidNotificationDetails(
+                  'ezan_channel',
+                  t.ezanChannelName,
+                  channelDescription: t.ezanChannelDescription,
+                  importance: Importance.max,
+                  priority: Priority.high,
+                  playSound: true,
+                  enableVibration: true,
+                ),
+                iOS: const DarwinNotificationDetails(
+                  presentAlert: true,
+                  presentBadge: true,
+                  presentSound: true,
+                ),
+              ),
+              androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+              uiLocalNotificationDateInterpretation:
+                  UILocalNotificationDateInterpretation.absoluteTime,
+            );
+            scheduledCount++;
+          } catch (_) {}
+        }
+      }
+    }
+
+    debugPrint('[EZAN_NOTIFY] $scheduledCount bildirim planlandı (${sortedDates.length} gün)');
+    return scheduledCount > 0 ? 'success' : 'schedule_failed';
+  }
+
+  /// Eski stil — tek gün planlama (geriye uyumluluk)
+  Future<String> scheduleAllEzanNotifications({
+    String? fajrTime,
+    String? dhuhrTime,
+    String? asrTime,
+    String? maghribTime,
+    String? ishaTime,
+  }) async {
+    await _ensureInitialized();
+
+    final hasPermission = await requestAndCheckPermission();
+    if (!hasPermission) return 'no_permission';
+
+    final normalizedFajr = _normalizeTimeText(fajrTime ?? '');
+    final normalizedDhuhr = _normalizeTimeText(dhuhrTime ?? '');
+    final normalizedAsr = _normalizeTimeText(asrTime ?? '');
+    final normalizedMaghrib = _normalizeTimeText(maghribTime ?? '');
+    final normalizedIsha = _normalizeTimeText(ishaTime ?? '');
+
+    final times = [normalizedFajr, normalizedDhuhr, normalizedAsr, normalizedMaghrib, normalizedIsha];
+    if (!times.any((t) => t.isNotEmpty)) return 'no_times';
+
+    // Bugünün tarihini kullanarak tek günlük multiDay formatına çevir
+    final now = DateTime.now();
+    final todayKey = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final tomorrowDate = now.add(const Duration(days: 1));
+    final tomorrowKey = '${tomorrowDate.year}-${tomorrowDate.month.toString().padLeft(2, '0')}-${tomorrowDate.day.toString().padLeft(2, '0')}';
+
+    final dayTimes = <String, String>{};
+    if (normalizedFajr.isNotEmpty) dayTimes['fajr'] = normalizedFajr;
+    if (normalizedDhuhr.isNotEmpty) dayTimes['dhuhr'] = normalizedDhuhr;
+    if (normalizedAsr.isNotEmpty) dayTimes['asr'] = normalizedAsr;
+    if (normalizedMaghrib.isNotEmpty) dayTimes['maghrib'] = normalizedMaghrib;
+    if (normalizedIsha.isNotEmpty) dayTimes['isha'] = normalizedIsha;
+
+    // Bugün ve yarın için aynı vakitlerle planla (stok yoksa fallback)
+    return scheduleMultiDayEzanNotifications(
+      multiDayTimes: {
+        todayKey: dayTimes,
+        tomorrowKey: dayTimes,
+      },
+    );
+  }
+
   Future<void> scheduleNoonNotification(
       String journeyId, String prayerTitle, int dailyCount) async {
     try {
@@ -190,7 +337,6 @@ class NotificationService {
       final now = DateTime.now();
       var scheduledDate = DateTime(now.year, now.month, now.day, 12, 0);
 
-      // If it's already past noon today, schedule for tomorrow
       if (scheduledDate.isBefore(now)) {
         scheduledDate = scheduledDate.add(const Duration(days: 1));
       }
@@ -213,7 +359,7 @@ class NotificationService {
           ),
           iOS: const DarwinNotificationDetails(),
         ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         matchDateTimeComponents: DateTimeComponents.time,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
@@ -232,163 +378,20 @@ class NotificationService {
     }
   }
 
-  // Ezan vakti bildirimi zamanla
-  Future<bool> scheduleEzanNotification({
-    required int id,
-    required String prayerName,
-    required String time, // "HH:mm" formatında
-  }) async {
-    try {
-      final t = AppStrings.fromPlatform();
-      await _ensureInitialized();
-      final scheduledDate = _parseTimeToDate(time);
-      if (scheduledDate == null) {
-        debugPrint('[EZAN_NOTIFY] Geçersiz saat formatı: "$time"');
-        return false;
-      }
-
-      final tz.TZDateTime tzScheduledDate =
-          tz.TZDateTime.from(scheduledDate, tz.local);
-
-      final notificationDetails = NotificationDetails(
-        android: AndroidNotificationDetails(
-          'ezan_channel',
-          t.ezanChannelName,
-          channelDescription: t.ezanChannelDescription,
-          importance: Importance.max,
-          priority: Priority.high,
-          playSound: true,
-          enableVibration: true,
-        ),
-        iOS: const DarwinNotificationDetails(
-          presentAlert: true,
-          presentBadge: true,
-          presentSound: true,
-        ),
-      );
-
-      try {
-        await flutterLocalNotificationsPlugin.zonedSchedule(
-          id,
-          t.prayerTimeTitle(prayerName),
-          t.prayerTimeTitle(prayerName),
-          tzScheduledDate,
-          notificationDetails,
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          matchDateTimeComponents: DateTimeComponents.time, // Her gün tekrarla
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-        );
-      } catch (e) {
-        // Bazı cihazlarda `inexactAllowWhileIdle` fallback gerektirebilir.
-        await flutterLocalNotificationsPlugin.zonedSchedule(
-          id,
-          t.prayerTimeTitle(prayerName),
-          t.prayerTimeTitle(prayerName),
-          tzScheduledDate,
-          notificationDetails,
-          androidScheduleMode: AndroidScheduleMode.inexact,
-          matchDateTimeComponents: DateTimeComponents.time,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-        );
-      }
-      return true;
-    } catch (e) {
-      debugPrint('[EZAN_NOTIFY] scheduleEzanNotification HATA: $e');
-      return false;
-    }
-  }
-
-  // Tüm ezan bildirimlerini planla
-  // Döndürülen değer: 'success', 'no_permission', 'no_times', 'schedule_failed'
-  Future<String> scheduleAllEzanNotifications({
-    String? fajrTime,
-    String? dhuhrTime,
-    String? asrTime,
-    String? maghribTime,
-    String? ishaTime,
-  }) async {
-    final t = AppStrings.fromPlatform();
-    await _ensureInitialized();
-
-    // İzni kontrol et ve gerekiyorsa iste
-    final hasPermission = await requestAndCheckPermission();
-    if (!hasPermission) return 'no_permission';
-
-    final normalizedFajr = _normalizeTimeText(fajrTime ?? '');
-    final normalizedDhuhr = _normalizeTimeText(dhuhrTime ?? '');
-    final normalizedAsr = _normalizeTimeText(asrTime ?? '');
-    final normalizedMaghrib = _normalizeTimeText(maghribTime ?? '');
-    final normalizedIsha = _normalizeTimeText(ishaTime ?? '');
-
-    // En az bir geçerli vakit var mı kontrol et
-    final times = [
-      normalizedFajr,
-      normalizedDhuhr,
-      normalizedAsr,
-      normalizedMaghrib,
-      normalizedIsha
-    ];
-    final hasAnyTime = times.any((t) => t.isNotEmpty);
-    if (!hasAnyTime) return 'no_times';
-
-    await cancelAllEzanNotifications();
-    var scheduledCount = 0;
-
-    if (normalizedFajr.isNotEmpty) {
-      final ok = await scheduleEzanNotification(
-        id: _fajrNotificationId,
-        prayerName: t.prayerNameFajr(),
-        time: normalizedFajr,
-      );
-      if (ok) scheduledCount++;
-    }
-    if (normalizedDhuhr.isNotEmpty) {
-      final ok = await scheduleEzanNotification(
-        id: _dhuhrNotificationId,
-        prayerName: t.prayerNameDhuhr(),
-        time: normalizedDhuhr,
-      );
-      if (ok) scheduledCount++;
-    }
-    if (normalizedAsr.isNotEmpty) {
-      final ok = await scheduleEzanNotification(
-        id: _asrNotificationId,
-        prayerName: t.prayerNameAsr(),
-        time: normalizedAsr,
-      );
-      if (ok) scheduledCount++;
-    }
-    if (normalizedMaghrib.isNotEmpty) {
-      final ok = await scheduleEzanNotification(
-        id: _maghribNotificationId,
-        prayerName: t.prayerNameMaghrib(),
-        time: normalizedMaghrib,
-      );
-      if (ok) scheduledCount++;
-    }
-    if (normalizedIsha.isNotEmpty) {
-      final ok = await scheduleEzanNotification(
-        id: _ishaNotificationId,
-        prayerName: t.prayerNameIsha(),
-        time: normalizedIsha,
-      );
-      if (ok) scheduledCount++;
-    }
-
-    return scheduledCount > 0 ? 'success' : 'schedule_failed';
-  }
-
-  // Tüm ezan bildirimlerini iptal et
+  /// Tüm ezan bildirimlerini iptal et (15 gün x 5 vakit = 75 bildirim)
   Future<void> cancelAllEzanNotifications() async {
     try {
       await _ensureInitialized();
-      await flutterLocalNotificationsPlugin.cancel(_fajrNotificationId);
-      await flutterLocalNotificationsPlugin.cancel(_dhuhrNotificationId);
-      await flutterLocalNotificationsPlugin.cancel(_asrNotificationId);
-      await flutterLocalNotificationsPlugin.cancel(_maghribNotificationId);
-      await flutterLocalNotificationsPlugin.cancel(_ishaNotificationId);
+      for (var day = 0; day < 15; day++) {
+        for (var prayer = 1; prayer <= 5; prayer++) {
+          await flutterLocalNotificationsPlugin
+              .cancel(_notificationId(day, prayer));
+        }
+      }
+      // Eski stil ID'leri de temizle (geriye uyumluluk)
+      for (final oldId in [1001, 1002, 1003, 1004, 1005]) {
+        await flutterLocalNotificationsPlugin.cancel(oldId);
+      }
     } catch (e) {
       // Ezan bildirimleri iptal edilemedi
     }
